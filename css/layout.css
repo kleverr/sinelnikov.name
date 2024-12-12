@@ -17,30 +17,23 @@
 
 .ids__wrapper {
   position: relative;
-  width: 70%;
-  margin: 0 auto;
+  width: 50%;
+  padding-left: 5%;
 
   @media (width < 767px) {
     width: 100%;
     padding: 0 calc(var(--ids__density) * 0.6em);
   }
 
-  &.wide {
-    width: 100%;
-    padding: 0 calc(var(--ids__density) * 0.75em);
+  &.L {
+    width: 95%;
 
     @media (width < 767px) {
       padding: 0 calc(var(--ids__density) * 0.6em);
     }
   }
 
-  &.edge {
-    width: 100%;
-
-    @media (width < 767px) {
-      padding: 0;
-    }
-  }
+  
 
   & .ids__text-width {
     width: 85%;

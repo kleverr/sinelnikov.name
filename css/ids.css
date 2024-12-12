@@ -131,11 +131,10 @@
   }
 
   & blockquote {
-    font-size: 1.4em;
-    line-height: var(--ids__density);
-    margin: 0;
-    padding-left: calc(var(--ids__density) * 0.75em);
-    margin-bottom: calc(var(--ids__density) * 1em);
+    font-size: 3.4em;
+    line-height: 1;
+    margin: 0.5em 0 0.1em 0;
+    
   }
 
   & aside {

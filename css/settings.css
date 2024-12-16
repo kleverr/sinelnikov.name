@@ -5,15 +5,21 @@
 /* Fonts */
 
 @font-face {
-  font-family: "Root UI";
+  font-family: "Inter";
   font-style: normal;
   font-display: swap;
-  src: url("../fonts/pt-root-ui_vf.woff2") format("woff2"),
-    url("../fonts/pt-root-ui_vf.woff") format("woff");
+  src: url("../fonts/Inter-VariableFont_opsz,wght.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Inter";
+  font-style: italic;
+  font-display: swap;
+  src: url("../fonts/Inter-Italic-VariableFont_opsz,wght.ttf") format("truetype");
 }
 
 body {
-  font-family: "Root UI";
+  font-family: "Inter";
+  
   -webkit-font-smoothing: antialiased;
   font-weight: 400;
 }

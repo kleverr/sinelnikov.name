@@ -2,3 +2,26 @@ section {
   margin: 0 0 3em 0;
   padding-top: 1em;
 }
+
+.highlighted-title {
+  margin: 2em 0 1em;
+  border-bottom: 1px solid rgba(var(--ids__text-RGB), 1);
+}
+
+.company-with-location {
+  h3, p {
+    display: inline;
+  }
+
+  h3 {
+    font-weight: 750;
+    &::after {
+      content: ',';
+    }
+  }
+  p {
+    font-size: 1.5em;
+    font-weight: 400;
+    opacity: 0.9;
+  }
+}

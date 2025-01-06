@@ -24,6 +24,11 @@
       font-size: 2em;
       line-height: 1.2;
     }
+    &.featured {      
+      font-weight: 350;
+      font-size: 1.5em;
+      line-height: 1.2;
+    }
   }
 
   & h1,
@@ -53,8 +58,8 @@
   }
 
   & h3 {
-    font-size: 1.5em;
-    font-weight: 600;
+    font-size: 1.8em;
+    font-weight: 650;
     line-height: calc(var(--ids__density) / 1.1);
     margin-bottom: 0.3em;
   }

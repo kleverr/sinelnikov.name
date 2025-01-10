@@ -19,6 +19,8 @@
 
 body {
   font-family: "Inter";
+  font-synthesis: none;
+  
   
   -webkit-font-smoothing: antialiased;
   font-weight: 400;

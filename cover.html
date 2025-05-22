@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cover Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            margin: 0;
+            min-height: 100vh;
+            background-color: #f0f0f0;
+        }
+
+        .container {
+            display: flex;
+            width: 100%;
+            padding: 0;
+            background-color: transparent;
+            box-shadow: none;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            min-width: 280px;
+            padding: 24px;
+            background-color: white;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            box-sizing: border-box;
+            padding-bottom: 40px;
+        }
+
+        .canvas-area {
+            flex-grow: 1;
+            margin-left: 340px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+        }
+
+        .canvas-container {
+            position: relative;
+            background: white;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            border-radius: 4px;
+        }
+
+        #coverCanvas {
+            display: block;
+        }
+
+        .section {
+            margin-bottom: 20px;
+        }
+
+        .title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        label {
+            margin-bottom: 8px;
+            font-size: 0.9em;
+            font-weight: bold;
+            color: #333;
+            display: block;
+        }
+
+        .color-section {
+            background: #f8f8f8;
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .color-section label {
+            margin-bottom: 12px;
+        }
+
+        .color-mode-toggle {
+            display: flex;
+            gap: 2px;
+            margin-bottom: 12px;
+            padding: 2px;
+            background: #f0f0f0;
+            border-radius: 6px;
+        }
+
+        .color-mode-button {
+            flex: 1;
+            padding: 8px 12px;
+            background: #f8f8f8;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.95em;
+            color: #666;
+            transition: all 0.2s;
+        }
+
+        .color-mode-button:hover {
+            background: #f0f0f0;
+        }
+
+        .color-mode-button.selected {
+            background: #007AFF;
+            color: white;
+            font-weight: 500;
+        }
+
+        .color-picker {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 3px;
+            width: 100%;
+            background-color: white;
+            padding: 3px;
+            border-radius: 6px;
+        }
+
+        .color-button {
+            width: 100%;
+            height: 24px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.15s;
+            position: relative;
+            padding: 0;
+            box-sizing: border-box;
+            border-radius: 0;
+        }
+
+        .color-button:first-child {
+            border-top-left-radius: 0;
+        }
+
+        .color-button:nth-child(4) {
+            border-top-right-radius: 0;
+        }
+
+        .color-button:nth-last-child(4) {
+            border-bottom-left-radius: 0;
+        }
+
+        .color-button:last-child {
+            border-bottom-right-radius: 0;
+        }
+
+        .color-button.selected {
+            outline: 2px solid #007AFF;
+            border: 2px solid white;
+        }
+
+        .color-button.pattern-selected {
+            outline: 2px solid #007AFF;
+            border: 2px solid white;
+        }
+
+        .color-tooltip {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 4px 8px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            border-radius: 4px;
+            font-size: 0.8em;
+            white-space: nowrap;
+            display: none;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .color-button:hover .color-tooltip {
+            display: block;
+        }
+
+        /* Hide color tabs */
+        .color-tabs {
+            display: none;
+        }
+        
+        .color-tab {
+            display: none;
+        }
+        
+        .color-group {
+            display: none;
+        }
+
+        /* Color definitions */
+        .color-harvard-crimson { background-color: #A41034; }
+        .color-red-2 { background-color: #E80538; }
+        .color-red-3 { background-color: #ED5541; }
+        .color-red-4 { background-color: #E0B2A7; }
+        
+        .color-orange-1 { background-color: #AE6429; }
+        .color-orange-2 { background-color: #E87D1E; }
+        .color-orange-3 { background-color: #EA9B20; }
+        .color-orange-4 { background-color: #F7C76B; }
+        
+        .color-yellow-1 { background-color: #C29D00; }
+        .color-yellow-2 { background-color: #EBCD00; }
+        .color-yellow-3 { background-color: #F3E44D; }
+        .color-yellow-4 { background-color: #F4EF6B; }
+        
+        .color-green-1 { background-color: #026833; }
+        .color-green-2 { background-color: #52A52E; }
+        .color-green-3 { background-color: #9EC44D; }
+        .color-green-4 { background-color: #B3D56A; }
+        
+        .color-teal-1 { background-color: #006085; }
+        .color-teal-2 { background-color: #00979D; }
+        .color-teal-3 { background-color: #56BAB3; }
+        .color-teal-4 { background-color: #9BD6C4; }
+        
+        .color-blue-1 { background-color: #3B2883; }
+        .color-blue-2 { background-color: #6578B4; }
+        .color-blue-3 { background-color: #7FA4D1; }
+        .color-blue-4 { background-color: #AAC8EB; }
+        
+        .color-purple-1 { background-color: #57116A; }
+        .color-purple-2 { background-color: #80408D; }
+        .color-purple-3 { background-color: #9B7FAF; }
+        .color-purple-4 { background-color: #C6B2D1; }
+        
+        .color-magenta-1 { background-color: #78244C; }
+        .color-magenta-2 { background-color: #C9006B; }
+        .color-magenta-3 { background-color: #D86199; }
+        .color-magenta-4 { background-color: #E599BA; }
+        
+        .color-black { background-color: #000000; }
+        .color-gray-2 { background-color: #68666F; }
+        .color-gray-3 { background-color: #A3A0A2; }
+        .color-gray-4 { background-color: #D5D0CA; }
+
+        .pattern-picker {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            width: 100%;
+            background-color: white;
+            padding: 8px;
+            border-radius: 6px;
+            margin-top: 4px;
+        }
+
+        .pattern-button {
+            width: 100%;
+            padding: 12px 8px;
+            background: #f8f8f8;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9em;
+            color: #333;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-weight: 500;
+        }
+
+        .pattern-button:hover {
+            background: #f0f0f0;
+            border-color: #d0d0d0;
+        }
+
+        .pattern-button.selected {
+            background: #007AFF;
+            color: white;
+            font-weight: 500;
+            border-color: #0056b3;
+        }
+
+        /* Remove unused styles */
+        .pattern-preview,
+        .pattern-name,
+        .section-header,
+        .section-content,
+        .collapse-icon {
+            display: none;
+        }
+
+        .size-picker {
+            display: flex;
+            gap: 2px;
+            margin-top: 4px;
+        }
+
+        .size-button {
+            flex: 1;
+            padding: 10px 16px;
+            border: none;
+            background: #f0f0f0;
+            cursor: pointer;
+            font-size: 0.95em;
+            color: #666;
+            transition: all 0.2s;
+            position: relative;
+            border-radius: 6px;
+        }
+
+        .size-button:hover {
+            background: #e5e5e5;
+        }
+
+        .size-button.selected {
+            background: #007AFF;
+            color: white;
+            font-weight: 500;
+        }
+
+        .size-button .dimensions {
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .size-button .dimensions::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 6px solid rgba(0, 0, 0, 0.8);
+        }
+
+        .size-button:hover .dimensions {
+            opacity: 1;
+            visibility: visible;
+            bottom: calc(100% + 4px);
+        }
+
+        .scale-control {
+            margin-top: 4px;
+        }
+
+        .scale-control .scale-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .scale-control label {
+            margin: 0;
+        }
+
+        .scale-value {
+            font-size: 0.9em;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .scale-control input[type="range"] {
+            width: 100%;
+            margin: 0;
+            -webkit-appearance: none;
+            background: transparent;
+        }
+
+        .scale-control input[type="range"]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 2px;
+        }
+
+        .scale-control input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            border: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #007AFF;
+            margin-top: -7px;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .scale-control input[type="range"]::-moz-range-track {
+            width: 100%;
+            height: 4px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 2px;
+        }
+
+        .scale-control input[type="range"]::-moz-range-thumb {
+            border: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #007AFF;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .scale-control .scale-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 0.85em;
+            color: #666;
+        }
+
+        #saveBtn {
+            width: 100%;
+            padding: 12px;
+            background: #007AFF;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.95em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        #saveBtn:hover {
+            background: #0066CC;
+        }
+
+        .group-title {
+            font-size: 1.1em;
+            font-weight: 500;
+            color: #666;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            padding-left: 5px;
+            border-left: 3px solid #007bff;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .section-header .collapse-icon {
+            margin-left: auto;
+            transition: transform 0.2s;
+            font-size: 0.8em;
+            color: #666;
+        }
+
+        .section-header.collapsed .collapse-icon {
+            transform: rotate(-90deg);
+        }
+
+        .section-content {
+            display: block;
+            transition: all 0.2s;
+            overflow: hidden;
+            max-height: 1000px;
+        }
+
+        .section-content.collapsed {
+            max-height: 0;
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="controls">
+            <div class="title">Cover Generator</div>
+            
+            <div class="section">
+                <label>Canvas Size</label>
+                <div class="size-picker">
+                    <button class="size-button selected" data-width="733" data-height="307">
+                        Blog Cover
+                        <span class="dimensions">733×307 px</span>
+                    </button>
+                    <button class="size-button" data-width="500" data-height="500">
+                        Square
+                        <span class="dimensions">500×500 px</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="section color-section">
+                <label>Colors</label>
+                <div class="color-mode-toggle">
+                    <button class="color-mode-button selected" data-mode="background">Background</button>
+                    <button class="color-mode-button" data-mode="pattern">Pattern</button>
+                </div>
+                <div class="color-picker" id="colorPicker">
+                    <!-- Reds -->
+                    <div class="color-button color-harvard-crimson selected" data-color="#A41034">
+                        <div class="color-tooltip">Harvard Crimson</div>
+                    </div>
+                    <div class="color-button color-red-2" data-color="#E80538">
+                        <div class="color-tooltip">Red 2</div>
+                    </div>
+                    <div class="color-button color-red-3" data-color="#ED5541">
+                        <div class="color-tooltip">Red 3</div>
+                    </div>
+                    <div class="color-button color-red-4 pattern-selected" data-color="#E0B2A7">
+                        <div class="color-tooltip">Red 4</div>
+                    </div>
+                    
+                    <!-- Oranges -->
+                    <div class="color-button color-orange-1" data-color="#AE6429">
+                        <div class="color-tooltip">Orange 1</div>
+                    </div>
+                    <div class="color-button color-orange-2" data-color="#E87D1E">
+                        <div class="color-tooltip">Orange 2</div>
+                    </div>
+                    <div class="color-button color-orange-3" data-color="#EA9B20">
+                        <div class="color-tooltip">Orange 3</div>
+                    </div>
+                    <div class="color-button color-orange-4" data-color="#F7C76B">
+                        <div class="color-tooltip">Orange 4</div>
+                    </div>
+                    
+                    <!-- Yellows -->
+                    <div class="color-button color-yellow-1" data-color="#C29D00">
+                        <div class="color-tooltip">Yellow 1</div>
+                    </div>
+                    <div class="color-button color-yellow-2" data-color="#EBCD00">
+                        <div class="color-tooltip">Yellow 2</div>
+                    </div>
+                    <div class="color-button color-yellow-3" data-color="#F3E44D">
+                        <div class="color-tooltip">Yellow 3</div>
+                    </div>
+                    <div class="color-button color-yellow-4" data-color="#F4EF6B">
+                        <div class="color-tooltip">Yellow 4</div>
+                    </div>
+                    
+                    <!-- Greens -->
+                    <div class="color-button color-green-1" data-color="#026833">
+                        <div class="color-tooltip">Green 1</div>
+                    </div>
+                    <div class="color-button color-green-2" data-color="#52A52E">
+                        <div class="color-tooltip">Green 2</div>
+                    </div>
+                    <div class="color-button color-green-3" data-color="#9EC44D">
+                        <div class="color-tooltip">Green 3</div>
+                    </div>
+                    <div class="color-button color-green-4" data-color="#B3D56A">
+                        <div class="color-tooltip">Green 4</div>
+                    </div>
+                    
+                    <!-- Teals -->
+                    <div class="color-button color-teal-1" data-color="#006085">
+                        <div class="color-tooltip">Teal 1</div>
+                    </div>
+                    <div class="color-button color-teal-2" data-color="#00979D">
+                        <div class="color-tooltip">Teal 2</div>
+                    </div>
+                    <div class="color-button color-teal-3" data-color="#56BAB3">
+                        <div class="color-tooltip">Teal 3</div>
+                    </div>
+                    <div class="color-button color-teal-4" data-color="#9BD6C4">
+                        <div class="color-tooltip">Teal 4</div>
+                    </div>
+                    
+                    <!-- Blues -->
+                    <div class="color-button color-blue-1" data-color="#3B2883">
+                        <div class="color-tooltip">Blue 1</div>
+                    </div>
+                    <div class="color-button color-blue-2" data-color="#6578B4">
+                        <div class="color-tooltip">Blue 2</div>
+                    </div>
+                    <div class="color-button color-blue-3" data-color="#7FA4D1">
+                        <div class="color-tooltip">Blue 3</div>
+                    </div>
+                    <div class="color-button color-blue-4" data-color="#AAC8EB">
+                        <div class="color-tooltip">Blue 4</div>
+                    </div>
+                    
+                    <!-- Purples -->
+                    <div class="color-button color-purple-1" data-color="#57116A">
+                        <div class="color-tooltip">Purple 1</div>
+                    </div>
+                    <div class="color-button color-purple-2" data-color="#80408D">
+                        <div class="color-tooltip">Purple 2</div>
+                    </div>
+                    <div class="color-button color-purple-3" data-color="#9B7FAF">
+                        <div class="color-tooltip">Purple 3</div>
+                    </div>
+                    <div class="color-button color-purple-4" data-color="#C6B2D1">
+                        <div class="color-tooltip">Purple 4</div>
+                    </div>
+                    
+                    <!-- Magentas -->
+                    <div class="color-button color-magenta-1" data-color="#78244C">
+                        <div class="color-tooltip">Magenta 1</div>
+                    </div>
+                    <div class="color-button color-magenta-2" data-color="#C9006B">
+                        <div class="color-tooltip">Magenta 2</div>
+                    </div>
+                    <div class="color-button color-magenta-3" data-color="#D86199">
+                        <div class="color-tooltip">Magenta 3</div>
+                    </div>
+                    <div class="color-button color-magenta-4" data-color="#E599BA">
+                        <div class="color-tooltip">Magenta 4</div>
+                    </div>
+                    
+                    <!-- Grays -->
+                    <div class="color-button color-black" data-color="#000000">
+                        <div class="color-tooltip">Black</div>
+                    </div>
+                    <div class="color-button color-gray-2" data-color="#68666F">
+                        <div class="color-tooltip">Gray 2</div>
+                    </div>
+                    <div class="color-button color-gray-3" data-color="#A3A0A2">
+                        <div class="color-tooltip">Gray 3</div>
+                    </div>
+                    <div class="color-button color-gray-4" data-color="#D5D0CA">
+                        <div class="color-tooltip">Gray 4</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <label>Pattern Style</label>
+                <div class="pattern-picker">
+                    <button class="pattern-button selected" data-pattern="1">Pattern 1</button>
+                    <button class="pattern-button" data-pattern="2">Pattern 2</button>
+                    <button class="pattern-button" data-pattern="3">Pattern 3</button>
+                    <button class="pattern-button" data-pattern="4">Pattern 4</button>
+                    <button class="pattern-button" data-pattern="5">Pattern 5</button>
+                    <button class="pattern-button" data-pattern="6">Pattern 6</button>
+                    <button class="pattern-button" data-pattern="7">Pattern 7</button>
+                    <button class="pattern-button" data-pattern="8">Pattern 8</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="scale-control">
+                    <div class="scale-header">
+                        <label for="patternScale">Pattern Scale</label>
+                        <span class="scale-value"><span id="scaleValue">1.00</span>×</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" id="patternScale" min="1" max="3" step="0.05" value="1">
+                    </div>
+                    <div class="scale-labels">
+                        <span>1×</span>
+                        <span>3×</span>
+                    </div>
+                </div>
+            </div>
+
+            <button id="saveBtn">Save Image</button>
+        </div>
+        <div class="canvas-area">
+            <div class="canvas-container">
+                <svg id="coverCanvas" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+                    <!-- Background rectangle -->
+                    <rect id="background" width="100%" height="100%" />
+                    
+                    <!-- Pattern definition -->
+                    <defs>
+                        <pattern id="architecturePattern" 
+                                patternUnits="userSpaceOnUse"
+                                width="100%" height="100%"
+                                preserveAspectRatio="xMidYMid slice"
+                                patternTransform="translate(-50%, -50%)">
+                            <g id="patternGroup">
+                                <image id="patternImage" 
+                                       width="2649.99" height="1697.97" 
+                                       preserveAspectRatio="xMidYMid slice"
+                                       transform="translate(-50%, -50%)" />
+                            </g>
+                        </pattern>
+                    </defs>
+                    
+                    <!-- Pattern overlay -->
+                    <rect id="patternOverlay" width="100%" height="100%" fill="url(#architecturePattern)" />
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const CANVAS_SIZE = 500;
+            let currentBgColor = '#A41034'; // Harvard Crimson
+            let currentPatternColor = '#E0B2A7'; // Red 4
+            let currentPattern = '1';
+            let canvasWidth = 733;
+            let canvasHeight = 307;
+            let currentColorMode = 'background';
+
+            // Pattern dimensions and unit sizes
+            const PATTERNS = {
+                '1': { width: 2649.99, height: 1697.97, unitWidth: 100, unitHeight: 100 },  // Circles Grid
+                '2': { width: 2649.99, height: 1697.97, unitWidth: 80, unitHeight: 80 },   // Diagonal Lines
+                '3': { width: 2649.99, height: 1697.97, unitWidth: 120, unitHeight: 60 },  // Hexagons
+                '4': { width: 2649.99, height: 1697.97, unitWidth: 100, unitHeight: 100 }, // Squares Flow
+                '5': { width: 2649.99, height: 1697.97, unitWidth: 90, unitHeight: 90 },   // Circuit Board
+                '6': { width: 2649.99, height: 1697.97, unitWidth: 150, unitHeight: 150 }, // Dotted Waves
+                '7': { width: 2649.99, height: 1697.97, unitWidth: 70, unitHeight: 70 },   // Tech Mesh
+                '8': { width: 2775.55, height: 1587.63, unitWidth: 80, unitHeight: 80 }    // Connected Nodes
+            };
+
+            // Initial pattern setup
+            const pattern = document.getElementById('architecturePattern');
+            const patternImage = document.getElementById('patternImage');
+            const background = document.getElementById('background');
+            const patternScaleInput = document.getElementById('patternScale');
+            const scaleValueSpan = document.getElementById('scaleValue');
+            const coverCanvas = document.getElementById('coverCanvas');
+            const canvasContainer = document.querySelector('.canvas-container');
+
+            function updateCanvasSize() {
+                // Update SVG viewBox
+                coverCanvas.setAttribute('viewBox', `0 0 ${canvasWidth} ${canvasHeight}`);
+                
+                // Set maximum dimensions for display
+                const maxDisplayWidth = 800;
+                const maxDisplayHeight = 600;
+                
+                // Calculate scale to fit within maximum dimensions while maintaining aspect ratio
+                const widthScale = maxDisplayWidth / canvasWidth;
+                const heightScale = maxDisplayHeight / canvasHeight;
+                const scale = Math.min(widthScale, heightScale);
+                
+                // Calculate final display dimensions
+                const scaledWidth = canvasWidth * scale;
+                const scaledHeight = canvasHeight * scale;
+                
+                // Update container size
+                canvasContainer.style.width = `${scaledWidth}px`;
+                canvasContainer.style.height = `${scaledHeight}px`;
+                
+                // Update background rectangle
+                background.setAttribute('width', canvasWidth);
+                background.setAttribute('height', canvasHeight);
+                
+                // Update pattern overlay
+                document.getElementById('patternOverlay').setAttribute('width', canvasWidth);
+                document.getElementById('patternOverlay').setAttribute('height', canvasHeight);
+            }
+
+            function updatePatternDimensions() {
+                const { width, height } = PATTERNS[currentPattern];
+                const pattern = document.getElementById('architecturePattern');
+                const patternImage = document.getElementById('patternImage');
+                
+                // Calculate scale based on SVG height and canvas height
+                const REFERENCE_HEIGHT = 307; // Height of our reference format where we want ~7 lines
+                const baseScale = canvasHeight / height;  // This gives us the full height scaling
+                const userScale = (parseFloat(patternScaleInput.value) || 1) * 1.8; // Multiply by 1.8 to make current 1.8x our new 1x
+                const referenceScale = REFERENCE_HEIGHT / height; // How much we scale in reference format
+                const currentScale = baseScale * userScale * (referenceScale / baseScale);
+
+                // Store the current scale for use during save
+                pattern.dataset.currentScale = currentScale;
+
+                // Set pattern dimensions
+                pattern.setAttribute('patternUnits', 'userSpaceOnUse');
+                pattern.setAttribute('width', width * currentScale);
+                pattern.setAttribute('height', height * currentScale);
+                pattern.setAttribute('viewBox', `0 0 ${width} ${height}`);
+                
+                // Center the pattern and apply scaling from center
+                const transformX = (canvasWidth - width * currentScale) / 2;
+                const transformY = (canvasHeight - height * currentScale) / 2;
+                pattern.setAttribute('patternTransform', `translate(${transformX}, ${transformY})`);
+
+                // Update image attributes
+                patternImage.setAttribute('width', width);
+                patternImage.setAttribute('height', height);
+                patternImage.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+                
+                // Store pattern dimensions for save operation
+                pattern.dataset.originalWidth = width;
+                pattern.dataset.originalHeight = height;
+                pattern.dataset.transformX = transformX;
+                pattern.dataset.transformY = transformY;
+            }
+
+            function setupSizePicker() {
+                const picker = document.querySelector('.size-picker');
+                const buttons = picker.querySelectorAll('.size-button');
+
+                buttons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        buttons.forEach(b => b.classList.remove('selected'));
+                        button.classList.add('selected');
+                        canvasWidth = parseInt(button.dataset.width);
+                        canvasHeight = parseInt(button.dataset.height);
+                        updateCanvasSize();
+                        updatePatternDimensions();
+                    });
+                });
+            }
+
+            function setupPatternPicker() {
+                const picker = document.querySelector('.pattern-picker');
+                const buttons = picker.querySelectorAll('.pattern-button');
+
+                buttons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        buttons.forEach(b => b.classList.remove('selected'));
+                        button.classList.add('selected');
+                        currentPattern = button.dataset.pattern;
+                        updatePatternDimensions();
+                        updateCover();
+                    });
+                });
+            }
+
+            function setupColorModeToggle() {
+                const toggleButtons = document.querySelectorAll('.color-mode-button');
+                const colorPicker = document.getElementById('colorPicker');
+                
+                // Set initial state
+                updateColorPickerState();
+
+                toggleButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        toggleButtons.forEach(b => b.classList.remove('selected'));
+                        button.classList.add('selected');
+                        currentColorMode = button.dataset.mode;
+                        updateColorPickerState();
+                    });
+                });
+            }
+
+            function updateColorPickerState() {
+                const colorPicker = document.getElementById('colorPicker');
+                const buttons = colorPicker.querySelectorAll('.color-button');
+                
+                // Clear all selections first
+                buttons.forEach(button => {
+                    button.classList.remove('selected', 'pattern-selected');
+                });
+                
+                // Add selection based on current colors
+                buttons.forEach(button => {
+                    if (currentColorMode === 'background' && button.dataset.color === currentBgColor) {
+                        button.classList.add('selected');
+                    } else if (currentColorMode === 'pattern' && button.dataset.color === currentPatternColor) {
+                        button.classList.add('pattern-selected');
+                    }
+                });
+            }
+
+            function setupColorPicker(pickerId) {
+                const picker = document.getElementById(pickerId);
+                const buttons = picker.querySelectorAll('.color-button');
+
+                buttons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        const color = button.dataset.color;
+                        if (currentColorMode === 'background') {
+                            currentBgColor = color;
+                        } else {
+                            currentPatternColor = color;
+                        }
+                        updateColorPickerState();
+                        updateCover();
+                    });
+                });
+            }
+
+            async function updateCover() {
+                background.setAttribute('fill', currentBgColor);
+                
+                try {
+                    // Use absolute path for GitHub Pages
+                    const response = await fetch(`/patterns/HBS_pattern_architecture_${currentPattern}.svg`);
+                    const svgText = await response.text();
+                    
+                    // Create a temporary DOM element to parse and modify the SVG
+                    const parser = new DOMParser();
+                    const svgDoc = parser.parseFromString(svgText, 'image/svg+xml');
+                    
+                    // Add fill and stroke attributes to all path elements that don't have them
+                    svgDoc.querySelectorAll('path').forEach(path => {
+                        if (!path.hasAttribute('fill')) {
+                            path.setAttribute('fill', 'none');
+                        }
+                        if (!path.hasAttribute('stroke')) {
+                            path.setAttribute('stroke', currentPatternColor);
+                        }
+                    });
+                    
+                    // Convert back to string
+                    const serializer = new XMLSerializer();
+                    let coloredSvg = serializer.serializeToString(svgDoc);
+                    
+                    // Replace any remaining color attributes
+                    coloredSvg = coloredSvg
+                        .replace(/stroke: ?#[^;]*/g, `stroke: ${currentPatternColor}`)
+                        .replace(/stroke="[^"]*"/g, `stroke="${currentPatternColor}"`)
+                        .replace(/fill: ?#[^;]*/g, `fill: ${currentPatternColor}`)
+                        .replace(/fill="[^"]*"/g, `fill="${currentPatternColor}"`);
+                    
+                    const blob = new Blob([coloredSvg], { type: 'image/svg+xml' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    // Update the pattern image
+                    patternImage.setAttribute('href', url);
+                    
+                    // Clean up the old URL if it exists
+                    const oldUrl = patternImage.dataset.url;
+                    if (oldUrl) {
+                        URL.revokeObjectURL(oldUrl);
+                    }
+                    patternImage.dataset.url = url;
+                } catch (error) {
+                    console.error('Error loading pattern:', error);
+                    alert('Error loading pattern. Please make sure the server is running.');
+                }
+            }
+
+            patternScaleInput.addEventListener('input', () => {
+                updatePatternDimensions();
+                const userScale = parseFloat(patternScaleInput.value) || 1;
+                scaleValueSpan.textContent = userScale.toFixed(2);
+            });
+
+            async function convertImageToBase64(url, color) {
+                // Use absolute path for GitHub Pages
+                const response = await fetch(`/patterns/HBS_pattern_architecture_${currentPattern}.svg`);
+                const svgText = await response.text();
+                
+                // Create a temporary DOM element to parse and modify the SVG
+                const parser = new DOMParser();
+                const svgDoc = parser.parseFromString(svgText, 'image/svg+xml');
+                
+                // Add fill and stroke attributes to all path elements
+                svgDoc.querySelectorAll('path').forEach(path => {
+                    if (!path.hasAttribute('fill')) {
+                        path.setAttribute('fill', 'none');
+                    }
+                    if (!path.hasAttribute('stroke')) {
+                        path.setAttribute('stroke', color);
+                    }
+                });
+                
+                // Convert back to string and replace any remaining color attributes
+                const serializer = new XMLSerializer();
+                let coloredSvg = serializer.serializeToString(svgDoc);
+                
+                // Replace any remaining color attributes
+                coloredSvg = coloredSvg
+                    .replace(/stroke: ?#[^;]*/g, `stroke: ${color}`)
+                    .replace(/stroke="[^"]*"/g, `stroke="${color}"`)
+                    .replace(/fill: ?#[^;]*/g, `fill: ${color}`)
+                    .replace(/fill="[^"]*"/g, `fill="${color}"`);
+                
+                // Convert to blob and then to base64
+                const blob = new Blob([coloredSvg], { type: 'image/svg+xml' });
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
+            }
+
+            document.getElementById('saveBtn').addEventListener('click', async () => {
+                try {
+                    // Get the SVG element that's currently rendered
+                    const svg = document.getElementById('coverCanvas');
+                    
+                    // Clone the SVG to preserve the exact state
+                    const clonedSvg = svg.cloneNode(true);
+                    
+                    // Copy computed dimensions and viewBox
+                    clonedSvg.setAttribute('width', canvasWidth);
+                    clonedSvg.setAttribute('height', canvasHeight);
+                    clonedSvg.setAttribute('viewBox', `0 0 ${canvasWidth} ${canvasHeight}`);
+                    
+                    // Ensure pattern is copied correctly
+                    const originalPattern = svg.querySelector('#architecturePattern');
+                    const clonedPattern = clonedSvg.querySelector('#architecturePattern');
+                    
+                    if (originalPattern && clonedPattern) {
+                        // Copy all attributes
+                        Array.from(originalPattern.attributes).forEach(attr => {
+                            clonedPattern.setAttribute(attr.name, attr.value);
+                        });
+                        
+                        // Handle pattern image
+                        const originalImage = originalPattern.querySelector('image');
+                        const clonedImage = clonedPattern.querySelector('image');
+                        if (originalImage && clonedImage) {
+                            // Get the current pattern URL
+                            const patternUrl = `/patterns/HBS_pattern_architecture_${currentPattern}.svg`;
+                            
+                            // Convert pattern to base64 with color
+                            const base64Pattern = await convertImageToBase64(patternUrl, currentPatternColor);
+                            clonedImage.setAttribute('href', base64Pattern);
+                            
+                            // Copy other attributes
+                            Array.from(originalImage.attributes).forEach(attr => {
+                                if (attr.name !== 'href') {
+                                    clonedImage.setAttribute(attr.name, attr.value);
+                                }
+                            });
+                        }
+                    }
+                    
+                    // Create canvas with the exact dimensions
+                    const canvas = document.createElement('canvas');
+                    canvas.width = canvasWidth;
+                    canvas.height = canvasHeight;
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Convert cloned SVG to data URL
+                    const svgData = new XMLSerializer().serializeToString(clonedSvg);
+                    const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
+                    const svgUrl = URL.createObjectURL(svgBlob);
+                    
+                    // Create a new promise to handle image loading
+                    await new Promise((resolve, reject) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            // Fill background first
+                            ctx.fillStyle = currentBgColor;
+                            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+                            
+                            // Draw the SVG
+                            ctx.drawImage(img, 0, 0, canvasWidth, canvasHeight);
+                            
+                            // Create and trigger download
+                            const link = document.createElement('a');
+                            link.download = `cover-${canvasWidth}x${canvasHeight}.png`;
+                            link.href = canvas.toDataURL('image/png', 1.0);
+                            link.click();
+                            
+                            // Cleanup
+                            URL.revokeObjectURL(svgUrl);
+                            resolve();
+                        };
+                        
+                        img.onerror = (error) => {
+                            console.error('Error loading SVG:', error);
+                            URL.revokeObjectURL(svgUrl);
+                            reject(new Error('Failed to load SVG'));
+                        };
+                        
+                        img.src = svgUrl;
+                    });
+                } catch (error) {
+                    console.error('Error saving image:', error);
+                    alert('Error generating the image. Please try again.');
+                }
+            });
+
+            // Initialize all controls
+            setupColorModeToggle();
+            setupColorPicker('colorPicker');
+            setupPatternPicker();
+            setupSizePicker();
+
+            // Initial update
+            updateCanvasSize();
+            updatePatternDimensions();
+            updateColorPickerState();
+            updateCover();
+        });
+    </script>
+</body>
+</html>

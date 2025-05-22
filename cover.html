@@ -893,8 +893,8 @@
                 background.setAttribute('fill', currentBgColor);
                 
                 try {
-                    // Use absolute path for GitHub Pages
-                    const response = await fetch(`/patterns/HBS_pattern_architecture_${currentPattern}.svg`);
+                    // Use relative path for GitHub Pages
+                    const response = await fetch(`patterns/HBS_pattern_architecture_${currentPattern}.svg`);
                     const svgText = await response.text();
                     
                     // Create a temporary DOM element to parse and modify the SVG
@@ -947,8 +947,8 @@
             });
 
             async function convertImageToBase64(url, color) {
-                // Use absolute path for GitHub Pages
-                const response = await fetch(`/patterns/HBS_pattern_architecture_${currentPattern}.svg`);
+                // Use relative path for GitHub Pages
+                const response = await fetch(`patterns/HBS_pattern_architecture_${currentPattern}.svg`);
                 const svgText = await response.text();
                 
                 // Create a temporary DOM element to parse and modify the SVG
@@ -1014,7 +1014,7 @@
                         const clonedImage = clonedPattern.querySelector('image');
                         if (originalImage && clonedImage) {
                             // Get the current pattern URL
-                            const patternUrl = `/patterns/HBS_pattern_architecture_${currentPattern}.svg`;
+                            const patternUrl = `patterns/HBS_pattern_architecture_${currentPattern}.svg`;
                             
                             // Convert pattern to base64 with color
                             const base64Pattern = await convertImageToBase64(patternUrl, currentPatternColor);

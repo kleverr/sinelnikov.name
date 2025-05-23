@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cover Generator</title>
+    <title>HBS Cover Generator</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -15,34 +15,47 @@
 
         .container {
             display: flex;
-            width: 100%;
-            padding: 0;
-            background-color: transparent;
-            box-shadow: none;
+            flex-direction: row;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
         }
 
         .controls {
             display: flex;
             flex-direction: column;
-            gap: 24px;
-            min-width: 280px;
-            padding: 24px;
+            gap: 14px;
+            min-width: 240px;
+            padding: 14px 12px 14px 12px;
             background-color: white;
             box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-            position: fixed;
-            height: 100vh;
             overflow-y: auto;
             box-sizing: border-box;
-            padding-bottom: 40px;
+            z-index: 1;
         }
 
         .canvas-area {
-            flex-grow: 1;
-            margin-left: 340px;
+            flex: 1 1 0;
+            min-width: 0;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
+            overflow: auto;
+            height: 100vh;
+            box-sizing: border-box;
+            position: relative;
+            padding: 0;
+        }
+
+        .canvas-area-inner {
+            display: flex;
+            flex-direction: column;
             align-items: center;
-            padding: 40px;
+            flex: 0 0 auto;
+            padding-top: 50px;
+            width: 100%;
+            min-width: 0;
+            min-height: 0;
+            margin: 0;
         }
 
         .canvas-container {
@@ -50,6 +63,10 @@
             background: white;
             box-shadow: 0 0 20px rgba(0,0,0,0.1);
             border-radius: 4px;
+            min-width: 0;
+            margin-bottom: 24px;
+            max-width: 100%;
+            box-sizing: border-box;
         }
 
         #coverCanvas {
@@ -57,14 +74,22 @@
         }
 
         .section {
-            margin-bottom: 20px;
+            margin-bottom: 10px;
         }
 
         .title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
             font-size: 1.2em;
             font-weight: bold;
             color: #333;
             margin-bottom: 15px;
+        }
+
+        .title img {
+            height: 1.56em;
+            width: auto;
         }
 
         label {
@@ -75,60 +100,64 @@
             display: block;
         }
 
-        .color-section {
-            background: #f8f8f8;
-            border-radius: 8px;
-            padding: 12px;
-        }
-
-        .color-section label {
-            margin-bottom: 12px;
-        }
-
-        .color-mode-toggle {
+        .color-mode-toggle, .pattern-group-tabs {
             display: flex;
-            gap: 2px;
-            margin-bottom: 12px;
-            padding: 2px;
-            background: #f0f0f0;
-            border-radius: 6px;
+            gap: 0;
+            margin-bottom: 8px;
+            padding: 0;
+            background: #e9e9e9;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            overflow: hidden;
         }
 
-        .color-mode-button {
+        .color-mode-button, .pattern-group-button {
             flex: 1;
             padding: 8px 12px;
-            background: #f8f8f8;
-            border: 1px solid transparent;
-            border-radius: 4px;
+            background: #e9e9e9;
+            border: none;
+            border-right: 1px solid #ccc;
             cursor: pointer;
             font-size: 0.95em;
             color: #666;
-            transition: all 0.2s;
-        }
-
-        .color-mode-button:hover {
-            background: #f0f0f0;
-        }
-
-        .color-mode-button.selected {
-            background: #007AFF;
-            color: white;
+            transition: background 0.15s, color 0.15s;
+            position: relative;
             font-weight: 500;
+        }
+        .color-mode-button:last-child, .pattern-group-button:last-child {
+            border-right: none;
+        }
+        .color-mode-button.selected, .pattern-group-button.selected {
+            background: #fff;
+            color: #222;
+            font-weight: 700;
+        }
+        .color-mode-button:not(.selected):hover, .pattern-group-button:not(.selected):hover {
+            background: #e0e0e0;
+            color: #222;
+        }
+        .color-mode-button:first-child, .pattern-group-button:first-child {
+            border-top-left-radius: 8px;
+            border-bottom-left-radius: 8px;
+        }
+        .color-mode-button:last-child, .pattern-group-button:last-child {
+            border-top-right-radius: 8px;
+            border-bottom-right-radius: 8px;
         }
 
         .color-picker {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 3px;
+            gap: 2px;
             width: 100%;
             background-color: white;
-            padding: 3px;
+            padding: 2px;
             border-radius: 6px;
         }
 
         .color-button {
             width: 100%;
-            height: 24px;
+            height: 20px;
             border: 1px solid transparent;
             cursor: pointer;
             transition: all 0.15s;
@@ -155,12 +184,12 @@
         }
 
         .color-button.selected {
-            outline: 2px solid #007AFF;
+            outline: 2px solid #000;
             border: 2px solid white;
         }
 
         .color-button.pattern-selected {
-            outline: 2px solid #007AFF;
+            outline: 2px solid #000;
             border: 2px solid white;
         }
 
@@ -246,41 +275,50 @@
         .pattern-picker {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 8px;
+            gap: 10px;
             width: 100%;
             background-color: white;
-            padding: 8px;
+            padding: 10px;
             border-radius: 6px;
-            margin-top: 4px;
+            margin-top: 0.5em;
+            box-sizing: border-box;
+            justify-items: center;
         }
 
         .pattern-button {
             width: 100%;
-            padding: 12px 8px;
+            max-width: 110px;
+            aspect-ratio: 1/1;
             background: #f8f8f8;
             border: 1px solid #e0e0e0;
             border-radius: 6px;
             cursor: pointer;
-            transition: all 0.2s;
-            font-size: 0.9em;
-            color: #333;
-            text-align: center;
-            white-space: nowrap;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             overflow: hidden;
-            text-overflow: ellipsis;
-            font-weight: 500;
+            position: relative;
+            padding: 0;
+        }
+
+        .pattern-preview-img {
+            width: 80%;
+            height: 80%;
+            object-fit: cover;
+            display: block;
         }
 
         .pattern-button:hover {
-            background: #f0f0f0;
-            border-color: #d0d0d0;
+            background: #ececec;
+            transform: scale(1.08);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+            z-index: 2;
         }
 
         .pattern-button.selected {
-            background: #007AFF;
-            color: white;
-            font-weight: 500;
-            border-color: #0056b3;
+            background: #f8f8f8;
+            border: 2px solid #666;
         }
 
         /* Remove unused styles */
@@ -293,69 +331,44 @@
         }
 
         .size-picker {
-            display: flex;
-            gap: 2px;
+            display: block;
             margin-top: 4px;
+            width: 100%;
         }
 
-        .size-button {
-            flex: 1;
-            padding: 10px 16px;
-            border: none;
-            background: #f0f0f0;
-            cursor: pointer;
-            font-size: 0.95em;
-            color: #666;
-            transition: all 0.2s;
-            position: relative;
+        .size-select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
             border-radius: 6px;
-        }
-
-        .size-button:hover {
-            background: #e5e5e5;
-        }
-
-        .size-button.selected {
-            background: #007AFF;
-            color: white;
-            font-weight: 500;
-        }
-
-        .size-button .dimensions {
-            position: absolute;
-            bottom: calc(100% + 8px);
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.85em;
-            opacity: 0;
-            visibility: hidden;
+            background: #f8f8f8;
+            font-size: 0.95em;
+            color: #333;
+            cursor: pointer;
             transition: all 0.2s;
-            white-space: nowrap;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23333%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 10px;
+            padding-right: 30px;
         }
 
-        .size-button .dimensions::after {
-            content: '';
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-            border-left: 6px solid transparent;
-            border-right: 6px solid transparent;
-            border-top: 6px solid rgba(0, 0, 0, 0.8);
+        .size-select:hover {
+            background-color: #f0f0f0;
+            border-color: #d0d0d0;
         }
 
-        .size-button:hover .dimensions {
-            opacity: 1;
-            visibility: visible;
-            bottom: calc(100% + 4px);
+        .size-select:focus {
+            outline: none;
+            border-color: #007AFF;
+            box-shadow: 0 0 0 2px rgba(0,122,255,0.2);
         }
 
         .scale-control {
             margin-top: 4px;
+            position: relative;
         }
 
         .scale-control .scale-header {
@@ -388,6 +401,7 @@
             background: #f0f0f0;
             border: none;
             border-radius: 2px;
+            cursor: pointer;
         }
 
         .scale-control input[type="range"]::-webkit-slider-thumb {
@@ -396,7 +410,7 @@
             height: 18px;
             width: 18px;
             border-radius: 50%;
-            background: #007AFF;
+            background: #666666;
             margin-top: -7px;
             cursor: pointer;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
@@ -408,6 +422,7 @@
             background: #f0f0f0;
             border: none;
             border-radius: 2px;
+            cursor: pointer;
         }
 
         .scale-control input[type="range"]::-moz-range-thumb {
@@ -415,7 +430,7 @@
             height: 18px;
             width: 18px;
             border-radius: 50%;
-            background: #007AFF;
+            background: #666666;
             cursor: pointer;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
@@ -429,22 +444,23 @@
         }
 
         #saveBtn {
-            width: 100%;
-            padding: 12px;
-            background: #007AFF;
+            display: block;
+            margin: 32px auto 0 auto;
+            padding: 14px 36px;
+            background: #2766b6;
             color: white;
             border: none;
             border-radius: 6px;
-            font-size: 0.95em;
+            font-size: 1em;
             font-weight: 500;
             cursor: pointer;
             transition: background-color 0.2s;
-            margin-top: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
             margin-bottom: 20px;
         }
 
         #saveBtn:hover {
-            background: #0066CC;
+            background: #1d4e8c;
         }
 
         .group-title {
@@ -488,29 +504,167 @@
             margin: 0;
             padding: 0;
         }
+
+        .copyright {
+            width: 100%;
+            text-align: center;
+            font-size: 0.85em;
+            color: #666;
+            padding: 0;
+            padding-bottom: 14px;
+            margin: 0;
+            pointer-events: none;
+            margin-top: auto;
+        }
+
+        .copyright-left {
+            width: auto;
+            font-size: 0.85em;
+            color: #666;
+            padding: 0;
+            text-align: left;
+            margin-top: auto;
+        }
+
+        .copyright-left a {
+            color: #666;
+            text-decoration: none;
+            border-bottom: 1px solid rgba(102, 102, 102, 0.3);
+            transition: border-color 0.2s;
+        }
+
+        .copyright-left a:hover {
+            color: #666;
+            border-bottom-color: rgba(102, 102, 102, 0.6);
+            text-decoration: none;
+        }
+
+        .copyright a {
+            color: #666;
+            text-decoration: none;
+            border-bottom: 1px solid rgba(102, 102, 102, 0.3);
+            transition: border-color 0.2s;
+            pointer-events: auto;
+        }
+
+        .copyright a:hover {
+            color: #666;
+            border-bottom-color: rgba(102, 102, 102, 0.6);
+            text-decoration: none;
+        }
+
+        .pattern-group-tabs {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            margin-bottom: 12px;
+            background: #e9e9e9;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .pattern-group-button {
+            width: 100%;
+            padding: 10px 12px;
+            background: #e9e9e9;
+            border: none;
+            border-bottom: 1px solid #ccc;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+            font-size: 0.95em;
+            color: #666;
+            text-align: left;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-weight: 500;
+        }
+
+        .pattern-group-button:last-child {
+            border-bottom: none;
+        }
+
+        .pattern-group-button.selected {
+            background: #fff;
+            color: #222;
+            font-weight: 700;
+        }
+
+        .pattern-group-button:not(.selected):hover {
+            background: #e0e0e0;
+            color: #222;
+        }
+
+        .pattern-group-button:first-child {
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+        }
+
+        .pattern-group-button:last-child {
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+        }
+
+        .color-button:hover {
+            z-index: 2;
+            transform: scale(1.18);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+        }
+
+        /* Remove the pseudo-element */
+        .scale-control::after {
+            display: none;
+        }
+
+        .randomize-link-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 18px;
+        }
+        .randomize-link {
+            background: none;
+            border: none;
+            color: #666;
+            font-size: 1em;
+            font-weight: 500;
+            text-decoration: underline;
+            text-decoration-color: rgba(102,102,102,0.25);
+            text-underline-offset: 2px;
+            padding: 0;
+            transition: color 0.15s, text-decoration-color 0.15s;
+            display: inline-block;
+            cursor: pointer;
+        }
+        .randomize-link:hover {
+            color: #333;
+            text-decoration: underline;
+            text-decoration-color: rgba(102,102,102,0.45);
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="controls">
-            <div class="title">Cover Generator</div>
-            
+            <div class="title">
+                <img src="/images/hbs-logo.png" alt="Harvard Business School Logo">
+                HBS Cover Generator
+            </div>
             <div class="section">
                 <label>Canvas Size</label>
                 <div class="size-picker">
-                    <button class="size-button selected" data-width="733" data-height="307">
-                        Blog Cover
-                        <span class="dimensions">733×307 px</span>
-                    </button>
-                    <button class="size-button" data-width="500" data-height="500">
-                        Square
-                        <span class="dimensions">500×500 px</span>
-                    </button>
+                    <select class="size-select" id="sizeSelect">
+                        <option value="733x307" selected>Blog Cover (733×307 px)</option>
+                        <option value="500x500">Square (500×500 px)</option>
+                        <option value="1584x396">LinkedIn Cover (1584×396 px)</option>
+                        <option value="custom">Custom...</option>
+                    </select>
                 </div>
             </div>
 
-            <div class="section color-section">
-                <label>Colors</label>
+            <div class="section">
+                <label>Color</label>
                 <div class="color-mode-toggle">
                     <button class="color-mode-button selected" data-mode="background">Background</button>
                     <button class="color-mode-button" data-mode="pattern">Pattern</button>
@@ -646,15 +800,17 @@
 
             <div class="section">
                 <label>Pattern Style</label>
+                <div class="pattern-group-tabs">
+                    <button class="pattern-group-button selected" data-group="Architecture">Architecture</button>
+                    <button class="pattern-group-button" data-group="Fences">Fences</button>
+                    <button class="pattern-group-button" data-group="Geometric">Geometric</button>
+                    <button class="pattern-group-button" data-group="Shields">Shields</button>
+                </div>
                 <div class="pattern-picker">
-                    <button class="pattern-button selected" data-pattern="1">Pattern 1</button>
-                    <button class="pattern-button" data-pattern="2">Pattern 2</button>
-                    <button class="pattern-button" data-pattern="3">Pattern 3</button>
-                    <button class="pattern-button" data-pattern="4">Pattern 4</button>
-                    <button class="pattern-button" data-pattern="5">Pattern 5</button>
-                    <button class="pattern-button" data-pattern="6">Pattern 6</button>
-                    <button class="pattern-button" data-pattern="7">Pattern 7</button>
-                    <button class="pattern-button" data-pattern="8">Pattern 8</button>
+                    <button class="pattern-button selected" data-pattern="1"><img class="pattern-preview-img" id="pattern-preview-1"></button>
+                    <button class="pattern-button" data-pattern="2"><img class="pattern-preview-img" id="pattern-preview-2"></button>
+                    <button class="pattern-button" data-pattern="3"><img class="pattern-preview-img" id="pattern-preview-3"></button>
+                    <button class="pattern-button" data-pattern="4"><img class="pattern-preview-img" id="pattern-preview-4"></button>
                 </div>
             </div>
 
@@ -665,66 +821,109 @@
                         <span class="scale-value"><span id="scaleValue">1.00</span>×</span>
                     </div>
                     <div class="slider-container">
-                        <input type="range" id="patternScale" min="1" max="3" step="0.05" value="1">
+                        <input type="range" id="patternScale" min="0.2" max="5" step="0.1" value="1">
                     </div>
                     <div class="scale-labels">
-                        <span>1×</span>
-                        <span>3×</span>
+                        <span>0.2×</span>
+                        <span>5×</span>
                     </div>
                 </div>
             </div>
-
-            <button id="saveBtn">Save Image</button>
+            <div class="copyright-left">
+                © <a href="https://sinelnikov.name/" target="_blank">Ilya Sinelnikov</a>, 2025
+            </div>
         </div>
         <div class="canvas-area">
-            <div class="canvas-container">
-                <svg id="coverCanvas" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
-                    <!-- Background rectangle -->
-                    <rect id="background" width="100%" height="100%" />
-                    
-                    <!-- Pattern definition -->
-                    <defs>
-                        <pattern id="architecturePattern" 
-                                patternUnits="userSpaceOnUse"
-                                width="100%" height="100%"
-                                preserveAspectRatio="xMidYMid slice"
-                                patternTransform="translate(-50%, -50%)">
-                            <g id="patternGroup">
-                                <image id="patternImage" 
-                                       width="2649.99" height="1697.97" 
-                                       preserveAspectRatio="xMidYMid slice"
-                                       transform="translate(-50%, -50%)" />
-                            </g>
-                        </pattern>
-                    </defs>
-                    
-                    <!-- Pattern overlay -->
-                    <rect id="patternOverlay" width="100%" height="100%" fill="url(#architecturePattern)" />
-                </svg>
+            <div class="canvas-area-inner">
+                <div class="randomize-link-container">
+                    <a href="#" class="randomize-link">Randomize</a>
+                </div>
+                <div class="canvas-container">
+                    <svg id="coverCanvas" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+                        <!-- Background rectangle -->
+                        <rect id="background" width="100%" height="100%" />
+                        
+                        <!-- Pattern definition -->
+                        <defs>
+                            <pattern id="architecturePattern" 
+                                    patternUnits="userSpaceOnUse"
+                                    patternTransform="translate(0,0)">
+                                <g id="patternGroup" transform-origin="center">
+                                    <image id="patternImage" 
+                                           preserveAspectRatio="xMidYMid meet" />
+                                </g>
+                            </pattern>
+                        </defs>
+                        
+                        <!-- Pattern overlay -->
+                        <rect id="patternOverlay" width="100%" height="100%" fill="url(#architecturePattern)" y="0" />
+                    </svg>
+                </div>
+                <button id="saveBtn">Save Image</button>
             </div>
+            <div class="copyright">
+                Patterns and color palette adapted from <a href="https://identity.hbs.edu/graphics/" target="_blank">Harvard Business School identity guidelines</a>
+            </div>
+        </div>
+    </div>
+
+    <div id="customSizeModal" style="display:none; position:fixed; z-index:10000; left:0; top:0; width:100vw; height:100vh; background:rgba(0,0,0,0.25); align-items:center; justify-content:center;">
+        <div style="background:white; border-radius:8px; box-shadow:0 2px 16px rgba(0,0,0,0.15); padding:32px 24px; min-width:320px; max-width:90vw;">
+            <h3 style="margin-top:0;">Custom Canvas Size</h3>
+            <div style="margin-bottom:16px;">
+                <label for="customWidth">Width (px):</label>
+                <input id="customWidth" type="number" min="1" max="5000" value="800" style="width:80px; margin-left:8px;">
+            </div>
+            <div style="margin-bottom:24px;">
+                <label for="customHeight">Height (px):</label>
+                <input id="customHeight" type="number" min="1" max="5000" value="400" style="width:80px; margin-left:8px;">
+            </div>
+            <button id="customSizeOk" style="background:#007AFF; color:white; border:none; border-radius:4px; padding:8px 18px; font-weight:500; margin-right:8px;">OK</button>
+            <button id="customSizeCancel" style="background:#eee; color:#333; border:none; border-radius:4px; padding:8px 18px;">Cancel</button>
         </div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const CANVAS_SIZE = 500;
-            let currentBgColor = '#A41034'; // Harvard Crimson
-            let currentPatternColor = '#E0B2A7'; // Red 4
-            let currentPattern = '1';
+            let currentBgColor;
+            let currentPatternColor;
+            let currentPatternGroup;
+            let currentPattern;
             let canvasWidth = 733;
             let canvasHeight = 307;
             let currentColorMode = 'background';
 
             // Pattern dimensions and unit sizes
             const PATTERNS = {
-                '1': { width: 2649.99, height: 1697.97, unitWidth: 100, unitHeight: 100 },  // Circles Grid
-                '2': { width: 2649.99, height: 1697.97, unitWidth: 80, unitHeight: 80 },   // Diagonal Lines
-                '3': { width: 2649.99, height: 1697.97, unitWidth: 120, unitHeight: 60 },  // Hexagons
-                '4': { width: 2649.99, height: 1697.97, unitWidth: 100, unitHeight: 100 }, // Squares Flow
-                '5': { width: 2649.99, height: 1697.97, unitWidth: 90, unitHeight: 90 },   // Circuit Board
-                '6': { width: 2649.99, height: 1697.97, unitWidth: 150, unitHeight: 150 }, // Dotted Waves
-                '7': { width: 2649.99, height: 1697.97, unitWidth: 70, unitHeight: 70 },   // Tech Mesh
-                '8': { width: 2775.55, height: 1587.63, unitWidth: 80, unitHeight: 80 }    // Connected Nodes
+                '1': { unitWidth: 100, unitHeight: 100 },  // Circles Grid
+                '2': { unitWidth: 80, unitHeight: 80 },    // Diagonal Lines
+                '3': { unitWidth: 120, unitHeight: 120 },  // Hexagons
+                '4': { unitWidth: 100, unitHeight: 100 },  // Squares Flow
+                '5': { unitWidth: 90, unitHeight: 90 },    // Circuit Board
+                '6': { unitWidth: 150, unitHeight: 150 },  // Dotted Waves
+                '7': { unitWidth: 70, unitHeight: 70 },    // Tech Mesh
+                '8': { unitWidth: 80, unitHeight: 80 }     // Connected Nodes
+            };
+
+            // Pattern group to folder and file naming mapping
+            const PATTERN_GROUP_CONFIG = {
+                'Architecture': {
+                    folder: 'HBS-Architecture-Patterns',
+                    file: n => `HBS_pattern_architecture_${n}.svg`
+                },
+                'Fences': {
+                    folder: 'HBS-Fences-Patterns',
+                    file: n => `HBS_Fences_Patterns_${n}.svg`
+                },
+                'Geometric': {
+                    folder: 'HBS-Geometric-Patterns',
+                    file: n => `HBS_pattern_geometric_${n}.svg`
+                },
+                'Shields': {
+                    folder: 'HBS-Shields-Patterns',
+                    file: n => `HBS_pattern_shield_${n}.svg`
+                }
             };
 
             // Initial pattern setup
@@ -736,26 +935,29 @@
             const coverCanvas = document.getElementById('coverCanvas');
             const canvasContainer = document.querySelector('.canvas-container');
 
+            // Store the current pattern's viewBox dimensions
+            let currentPatternViewBox = { svgWidth: 2246.51, svgHeight: 1532.98 };
+
             function updateCanvasSize() {
                 // Update SVG viewBox
                 coverCanvas.setAttribute('viewBox', `0 0 ${canvasWidth} ${canvasHeight}`);
                 
                 // Set maximum dimensions for display
-                const maxDisplayWidth = 800;
+                const maxDisplayWidth = 1200; // Increased from 800 to accommodate LinkedIn size
                 const maxDisplayHeight = 600;
                 
                 // Calculate scale to fit within maximum dimensions while maintaining aspect ratio
                 const widthScale = maxDisplayWidth / canvasWidth;
                 const heightScale = maxDisplayHeight / canvasHeight;
-                const scale = Math.min(widthScale, heightScale);
+                const scale = Math.min(widthScale, heightScale, 1); // Added 1 as maximum to prevent upscaling
                 
                 // Calculate final display dimensions
-                const scaledWidth = canvasWidth * scale;
-                const scaledHeight = canvasHeight * scale;
+                const displayWidth = canvasWidth * scale;
+                const displayHeight = canvasHeight * scale;
                 
                 // Update container size
-                canvasContainer.style.width = `${scaledWidth}px`;
-                canvasContainer.style.height = `${scaledHeight}px`;
+                canvasContainer.style.width = `${displayWidth}px`;
+                canvasContainer.style.height = `${displayHeight}px`;
                 
                 // Update background rectangle
                 background.setAttribute('width', canvasWidth);
@@ -766,73 +968,219 @@
                 document.getElementById('patternOverlay').setAttribute('height', canvasHeight);
             }
 
-            function updatePatternDimensions() {
-                const { width, height } = PATTERNS[currentPattern];
-                const pattern = document.getElementById('architecturePattern');
-                const patternImage = document.getElementById('patternImage');
-                
-                // Calculate scale based on SVG height and canvas height
-                const REFERENCE_HEIGHT = 307; // Height of our reference format where we want ~7 lines
-                const baseScale = canvasHeight / height;  // This gives us the full height scaling
-                const userScale = (parseFloat(patternScaleInput.value) || 1) * 1.8; // Multiply by 1.8 to make current 1.8x our new 1x
-                const referenceScale = REFERENCE_HEIGHT / height; // How much we scale in reference format
-                const currentScale = baseScale * userScale * (referenceScale / baseScale);
-
-                // Store the current scale for use during save
-                pattern.dataset.currentScale = currentScale;
-
-                // Set pattern dimensions
-                pattern.setAttribute('patternUnits', 'userSpaceOnUse');
-                pattern.setAttribute('width', width * currentScale);
-                pattern.setAttribute('height', height * currentScale);
-                pattern.setAttribute('viewBox', `0 0 ${width} ${height}`);
-                
-                // Center the pattern and apply scaling from center
-                const transformX = (canvasWidth - width * currentScale) / 2;
-                const transformY = (canvasHeight - height * currentScale) / 2;
-                pattern.setAttribute('patternTransform', `translate(${transformX}, ${transformY})`);
-
-                // Update image attributes
-                patternImage.setAttribute('width', width);
-                patternImage.setAttribute('height', height);
-                patternImage.setAttribute('preserveAspectRatio', 'xMidYMid slice');
-                
-                // Store pattern dimensions for save operation
-                pattern.dataset.originalWidth = width;
-                pattern.dataset.originalHeight = height;
-                pattern.dataset.transformX = transformX;
-                pattern.dataset.transformY = transformY;
+            async function updateCover() {
+                if (!currentPatternGroup || !currentPattern || !PATTERN_GROUP_CONFIG[currentPatternGroup]) {
+                    console.warn('updateCover called with invalid group or pattern:', currentPatternGroup, currentPattern);
+                    return;
+                }
+                background.setAttribute('fill', currentBgColor);
+                try {
+                    // Map group to folder and file
+                    const config = PATTERN_GROUP_CONFIG[currentPatternGroup];
+                    const folder = config.folder;
+                    const file = config.file(currentPattern);
+                    const response = await fetch(`patterns/${folder}/${file}`);
+                    if (!response.ok) {
+                        throw new Error(`Pattern file not found: patterns/${folder}/${file}`);
+                    }
+                    const svgText = await response.text();
+                    // Extract viewBox dimensions from SVG
+                    const viewBoxMatch = svgText.match(/viewBox="([\d\.\s]+)"/);
+                    if (viewBoxMatch) {
+                        const [, viewBox] = viewBoxMatch;
+                        const [x, y, w, h] = viewBox.split(/\s+/).map(Number);
+                        currentPatternViewBox = { svgWidth: w, svgHeight: h };
+                    } else {
+                        currentPatternViewBox = { svgWidth: 2246.51, svgHeight: 1532.98 };
+                    }
+                    // Create a temporary DOM element to parse and modify the SVG
+                    const parser = new DOMParser();
+                    const svgDoc = parser.parseFromString(svgText, 'image/svg+xml');
+                    // Add fill and stroke attributes to all path elements that don't have them
+                    svgDoc.querySelectorAll('path').forEach(path => {
+                        if (!path.hasAttribute('fill')) {
+                            path.setAttribute('fill', 'none');
+                        }
+                        if (!path.hasAttribute('stroke')) {
+                            path.setAttribute('stroke', currentPatternColor);
+                        }
+                    });
+                    // Convert back to string
+                    const serializer = new XMLSerializer();
+                    let coloredSvg = serializer.serializeToString(svgDoc);
+                    // Replace any remaining color attributes
+                    coloredSvg = coloredSvg
+                        .replace(/stroke: ?#[^;]*/g, `stroke: ${currentPatternColor}`)
+                        .replace(/stroke="[^"]*"/g, `stroke="${currentPatternColor}"`)
+                        .replace(/fill: ?#[^;]*/g, `fill: ${currentPatternColor}`)
+                        .replace(/fill="[^"]*"/g, `fill="${currentPatternColor}"`);
+                    const blob = new Blob([coloredSvg], { type: 'image/svg+xml' });
+                    const url = URL.createObjectURL(blob);
+                    // Update the pattern image
+                    patternImage.setAttribute('href', url);
+                    // Clean up the old URL if it exists
+                    const oldUrl = patternImage.dataset.url;
+                    if (oldUrl) {
+                        URL.revokeObjectURL(oldUrl);
+                    }
+                    patternImage.dataset.url = url;
+                    // Update pattern dimensions after loading new SVG
+                    updatePatternDimensions();
+                } catch (error) {
+                    console.error('Error loading pattern:', error, 'Group:', currentPatternGroup, 'Pattern:', currentPattern);
+                    alert('Error loading pattern. Please make sure the server is running and the pattern exists.\n' + error);
+                }
             }
 
-            function setupSizePicker() {
-                const picker = document.querySelector('.size-picker');
-                const buttons = picker.querySelectorAll('.size-button');
+            function updatePatternDimensions() {
+                const scale = parseFloat(patternScaleInput.value) || 1;
+                // Use the dynamically extracted viewBox dimensions
+                const { svgWidth, svgHeight } = currentPatternViewBox;
+                const svgAspectRatio = svgWidth / svgHeight;
+                // Calculate base dimensions to match canvas height at scale 1.0
+                const baseHeight = canvasHeight;
+                const baseWidth = baseHeight * svgAspectRatio;
+                // Calculate scaled dimensions
+                const scaledWidth = baseWidth * scale;
+                const scaledHeight = baseHeight * scale;
+                // Calculate offset to keep pattern centered
+                const offsetX = (canvasWidth - scaledWidth) / 2;
+                const offsetY = (canvasHeight - scaledHeight) / 2;
+                // Update pattern attributes
+                pattern.setAttribute('width', scaledWidth);
+                pattern.setAttribute('height', scaledHeight);
+                pattern.setAttribute('patternTransform', `translate(${offsetX},${offsetY})`);
+                // Update image dimensions
+                patternImage.setAttribute('width', scaledWidth);
+                patternImage.setAttribute('height', scaledHeight);
+            }
 
-                buttons.forEach(button => {
-                    button.addEventListener('click', () => {
-                        buttons.forEach(b => b.classList.remove('selected'));
-                        button.classList.add('selected');
-                        canvasWidth = parseInt(button.dataset.width);
-                        canvasHeight = parseInt(button.dataset.height);
+            // Restore slider event listener for dynamic scaling
+            patternScaleInput.addEventListener('input', () => {
+                const scale = parseFloat(patternScaleInput.value);
+                updatePatternDimensions();
+                scaleValueSpan.textContent = scale.toFixed(2);
+            });
+
+            function setupSizePicker() {
+                const sizeSelect = document.getElementById('sizeSelect');
+                const customSizeModal = document.getElementById('customSizeModal');
+                const customWidthInput = document.getElementById('customWidth');
+                const customHeightInput = document.getElementById('customHeight');
+                const customOkBtn = document.getElementById('customSizeOk');
+                const customCancelBtn = document.getElementById('customSizeCancel');
+
+                sizeSelect.addEventListener('change', () => {
+                    const [width, height] = sizeSelect.value.split('x').map(Number);
+                    if (sizeSelect.value === 'custom') {
+                        // Show modal
+                        customSizeModal.style.display = 'flex';
+                        // Set defaults to current size
+                        customWidthInput.value = canvasWidth;
+                        customHeightInput.value = canvasHeight;
+                    } else {
+                        canvasWidth = width;
+                        canvasHeight = height;
                         updateCanvasSize();
                         updatePatternDimensions();
-                    });
+                    }
                 });
+                // Modal OK
+                customOkBtn.addEventListener('click', () => {
+                    const w = parseInt(customWidthInput.value, 10);
+                    const h = parseInt(customHeightInput.value, 10);
+                    if (w > 0 && h > 0) {
+                        canvasWidth = w;
+                        canvasHeight = h;
+                        updateCanvasSize();
+                        updatePatternDimensions();
+                        // Set dropdown to custom
+                        sizeSelect.value = 'custom';
+                        customSizeModal.style.display = 'none';
+                    }
+                });
+                // Modal Cancel
+                customCancelBtn.addEventListener('click', () => {
+                    customSizeModal.style.display = 'none';
+                    // Reset dropdown to previous value
+                    sizeSelect.selectedIndex = 0;
+                });
+                // Hide modal on outside click
+                customSizeModal.addEventListener('click', (e) => {
+                    if (e.target === customSizeModal) {
+                        customSizeModal.style.display = 'none';
+                        sizeSelect.selectedIndex = 0;
+                    }
+                });
+            }
+
+            // Make updatePatternPreviews globally available
+            const previewImgs = [
+                document.getElementById('pattern-preview-1'),
+                document.getElementById('pattern-preview-2'),
+                document.getElementById('pattern-preview-3'),
+                document.getElementById('pattern-preview-4')
+            ];
+            async function updatePatternPreviews() {
+                const config = PATTERN_GROUP_CONFIG[currentPatternGroup];
+                for (let i = 1; i <= 4; i++) {
+                    const folder = config.folder;
+                    const file = config.file(i);
+                    const img = previewImgs[i-1];
+                    try {
+                        const response = await fetch(`patterns/${folder}/${file}`);
+                        let svgText = await response.text();
+                        // Try to zoom in 5x by adjusting the viewBox
+                        const viewBoxMatch = svgText.match(/viewBox="([\d\.\s]+)"/);
+                        if (viewBoxMatch) {
+                            const [, viewBox] = viewBoxMatch;
+                            const [x, y, w, h] = viewBox.split(/\s+/).map(Number);
+                            // Calculate new viewBox to zoom in 5x (centered)
+                            const zoom = 5;
+                            const newW = w / zoom;
+                            const newH = h / zoom;
+                            const newX = x + (w - newW) / 2;
+                            const newY = y + (h - newH) / 2;
+                            svgText = svgText.replace(/viewBox="[\d\.\s]+"/, `viewBox="${newX} ${newY} ${newW} ${newH}"`);
+                        }
+                        const svgBase64 = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgText)));
+                        img.src = svgBase64;
+                        img.alt = `Pattern ${i}`;
+                    } catch (e) {
+                        img.src = '';
+                    }
+                }
             }
 
             function setupPatternPicker() {
-                const picker = document.querySelector('.pattern-picker');
-                const buttons = picker.querySelectorAll('.pattern-button');
+                const groupTabs = document.querySelector('.pattern-group-tabs');
+                const groupButtons = groupTabs.querySelectorAll('.pattern-group-button');
+                const patternPicker = document.querySelector('.pattern-picker');
+                const patternButtons = patternPicker.querySelectorAll('.pattern-button');
 
-                buttons.forEach(button => {
+                groupButtons.forEach(button => {
                     button.addEventListener('click', () => {
-                        buttons.forEach(b => b.classList.remove('selected'));
+                        groupButtons.forEach(b => b.classList.remove('selected'));
+                        button.classList.add('selected');
+                        currentPatternGroup = button.dataset.group;
+                        updatePatternPreviews();
+                        // Always deselect all pattern buttons and clear currentPattern
+                        patternButtons.forEach(b => b.classList.remove('selected'));
+                        currentPattern = null;
+                    });
+                });
+
+                patternButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        patternButtons.forEach(b => b.classList.remove('selected'));
                         button.classList.add('selected');
                         currentPattern = button.dataset.pattern;
-                        updatePatternDimensions();
                         updateCover();
                     });
                 });
+
+                // Initial preview load
+                updatePatternPreviews();
             }
 
             function setupColorModeToggle() {
@@ -889,66 +1237,12 @@
                 });
             }
 
-            async function updateCover() {
-                background.setAttribute('fill', currentBgColor);
-                
-                try {
-                    // Use relative path for GitHub Pages
-                    const response = await fetch(`patterns/HBS_pattern_architecture_${currentPattern}.svg`);
-                    const svgText = await response.text();
-                    
-                    // Create a temporary DOM element to parse and modify the SVG
-                    const parser = new DOMParser();
-                    const svgDoc = parser.parseFromString(svgText, 'image/svg+xml');
-                    
-                    // Add fill and stroke attributes to all path elements that don't have them
-                    svgDoc.querySelectorAll('path').forEach(path => {
-                        if (!path.hasAttribute('fill')) {
-                            path.setAttribute('fill', 'none');
-                        }
-                        if (!path.hasAttribute('stroke')) {
-                            path.setAttribute('stroke', currentPatternColor);
-                        }
-                    });
-                    
-                    // Convert back to string
-                    const serializer = new XMLSerializer();
-                    let coloredSvg = serializer.serializeToString(svgDoc);
-                    
-                    // Replace any remaining color attributes
-                    coloredSvg = coloredSvg
-                        .replace(/stroke: ?#[^;]*/g, `stroke: ${currentPatternColor}`)
-                        .replace(/stroke="[^"]*"/g, `stroke="${currentPatternColor}"`)
-                        .replace(/fill: ?#[^;]*/g, `fill: ${currentPatternColor}`)
-                        .replace(/fill="[^"]*"/g, `fill="${currentPatternColor}"`);
-                    
-                    const blob = new Blob([coloredSvg], { type: 'image/svg+xml' });
-                    const url = URL.createObjectURL(blob);
-                    
-                    // Update the pattern image
-                    patternImage.setAttribute('href', url);
-                    
-                    // Clean up the old URL if it exists
-                    const oldUrl = patternImage.dataset.url;
-                    if (oldUrl) {
-                        URL.revokeObjectURL(oldUrl);
-                    }
-                    patternImage.dataset.url = url;
-                } catch (error) {
-                    console.error('Error loading pattern:', error);
-                    alert('Error loading pattern. Please make sure the server is running.');
-                }
-            }
-
-            patternScaleInput.addEventListener('input', () => {
-                updatePatternDimensions();
-                const userScale = parseFloat(patternScaleInput.value) || 1;
-                scaleValueSpan.textContent = userScale.toFixed(2);
-            });
-
             async function convertImageToBase64(url, color) {
-                // Use relative path for GitHub Pages
-                const response = await fetch(`patterns/HBS_pattern_architecture_${currentPattern}.svg`);
+                // Map group to folder and file
+                const config = PATTERN_GROUP_CONFIG[currentPatternGroup];
+                const folder = config.folder;
+                const file = config.file(currentPattern);
+                const response = await fetch(`patterns/${folder}/${file}`);
                 const svgText = await response.text();
                 
                 // Create a temporary DOM element to parse and modify the SVG
@@ -1014,7 +1308,10 @@
                         const clonedImage = clonedPattern.querySelector('image');
                         if (originalImage && clonedImage) {
                             // Get the current pattern URL
-                            const patternUrl = `patterns/HBS_pattern_architecture_${currentPattern}.svg`;
+                            const config = PATTERN_GROUP_CONFIG[currentPatternGroup];
+                            const folder = config.folder;
+                            const file = config.file(currentPattern);
+                            const patternUrl = `patterns/${folder}/${file}`;
                             
                             // Convert pattern to base64 with color
                             const base64Pattern = await convertImageToBase64(patternUrl, currentPatternColor);
@@ -1084,9 +1381,64 @@
 
             // Initial update
             updateCanvasSize();
-            updatePatternDimensions();
-            updateColorPickerState();
-            updateCover();
+
+            // --- RANDOMIZE LINK FUNCTIONALITY ---
+            async function randomizeCover() {
+                // 1. Random pattern group
+                const patternGroups = Object.keys(PATTERN_GROUP_CONFIG);
+                const randomGroup = patternGroups[Math.floor(Math.random() * patternGroups.length)];
+                currentPatternGroup = randomGroup;
+                // Update pattern group tab UI
+                document.querySelectorAll('.pattern-group-button').forEach(btn => {
+                    btn.classList.toggle('selected', btn.dataset.group === randomGroup);
+                });
+
+                // 2. Random pattern (1-4)
+                const randomPattern = (Math.floor(Math.random() * 4) + 1).toString();
+                currentPattern = randomPattern;
+                // Update pattern button UI
+                document.querySelectorAll('.pattern-button').forEach(btn => {
+                    btn.classList.toggle('selected', btn.dataset.pattern === randomPattern);
+                });
+
+                // 3. Get all color values
+                const colorButtons = Array.from(document.querySelectorAll('.color-button'));
+                const colorValues = colorButtons.map(btn => btn.dataset.color);
+
+                // 4. Random background color
+                let bgColor = colorValues[Math.floor(Math.random() * colorValues.length)];
+
+                // 5. Random pattern color (must not match bgColor)
+                let patternColor;
+                do {
+                    patternColor = colorValues[Math.floor(Math.random() * colorValues.length)];
+                } while (patternColor === bgColor && colorValues.length > 1);
+
+                currentBgColor = bgColor;
+                currentPatternColor = patternColor;
+
+                // Update color picker UI
+                updateColorPickerState();
+
+                // Update pattern previews (for the new group) and wait for them to load
+                if (typeof updatePatternPreviews === 'function') {
+                    await updatePatternPreviews();
+                }
+
+                // Only update cover if pattern group and pattern are valid
+                if (currentPatternGroup && currentPattern) {
+                    updateCover();
+                }
+            }
+
+            // Call randomizeCover on page load
+            randomizeCover();
+
+            // Keep the randomize link working as before
+            document.querySelector('.randomize-link').addEventListener('click', function(e) {
+                e.preventDefault();
+                randomizeCover();
+            });
         });
     </script>
 </body>

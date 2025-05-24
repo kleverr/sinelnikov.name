@@ -3,32 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cover Generator</title>
+    <title>HBS Cover Generator</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             display: flex;
             margin: 0;
+            min-height: 100vh;
             background-color: #f0f0f0;
         }
 
         .container {
             display: flex;
             flex-direction: row;
-            min-height: 100vh;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
         }
 
         .controls {
             display: flex;
             flex-direction: column;
             gap: 14px;
-            min-width: 180px;
+            min-width: 240px;
             padding: 14px 12px 14px 12px;
             background-color: white;
             box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            overflow-y: auto;
             box-sizing: border-box;
             z-index: 1;
-            height: auto;
         }
 
         .canvas-area {
@@ -36,10 +39,11 @@
             min-width: 0;
             display: flex;
             flex-direction: column;
+            overflow: auto;
+            height: 100vh;
             box-sizing: border-box;
             position: relative;
             padding: 0;
-            background: none;
         }
 
         .canvas-area-inner {
@@ -96,11 +100,56 @@
             display: block;
         }
 
+        .color-mode-toggle, .pattern-group-tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 8px;
+            padding: 0;
+            background: #e9e9e9;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            overflow: hidden;
+        }
+
+        .color-mode-button, .pattern-group-button {
+            flex: 1;
+            padding: 8px 12px;
+            background: #e9e9e9;
+            border: none;
+            border-right: 1px solid #ccc;
+            cursor: pointer;
+            font-size: 0.95em;
+            color: #666;
+            transition: background 0.15s, color 0.15s;
+            position: relative;
+            font-weight: 500;
+        }
+        .color-mode-button:last-child, .pattern-group-button:last-child {
+            border-right: none;
+        }
+        .color-mode-button.selected, .pattern-group-button.selected {
+            background: #fff;
+            color: #222;
+            font-weight: 700;
+        }
+        .color-mode-button:not(.selected):hover, .pattern-group-button:not(.selected):hover {
+            background: #e0e0e0;
+            color: #222;
+        }
+        .color-mode-button:first-child, .pattern-group-button:first-child {
+            border-top-left-radius: 8px;
+            border-bottom-left-radius: 8px;
+        }
+        .color-mode-button:last-child, .pattern-group-button:last-child {
+            border-top-right-radius: 8px;
+            border-bottom-right-radius: 8px;
+        }
+
         .color-picker {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 2px;
-            width: 160px;
+            width: 100%;
             background-color: white;
             padding: 2px;
             border-radius: 6px;
@@ -164,12 +213,16 @@
             display: block;
         }
 
-        /* Remove color mode toggle styles */
-        .color-mode-toggle {
+        /* Hide color tabs */
+        .color-tabs {
             display: none;
         }
         
-        .color-mode-button {
+        .color-tab {
+            display: none;
+        }
+        
+        .color-group {
             display: none;
         }
 
@@ -282,16 +335,16 @@
         .size-picker {
             display: block;
             margin-top: 4px;
-            width: 160px;
+            width: 100%;
         }
 
         .size-select {
             width: 100%;
-            padding: 8px;
+            padding: 10px;
             border: 1px solid #e0e0e0;
             border-radius: 6px;
             background: #f8f8f8;
-            font-size: 0.9em;
+            font-size: 0.95em;
             color: #333;
             cursor: pointer;
             transition: all 0.2s;
@@ -299,9 +352,9 @@
             -webkit-appearance: none;
             background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23333%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
             background-repeat: no-repeat;
-            background-position: right 8px center;
-            background-size: 8px;
-            padding-right: 24px;
+            background-position: right 12px center;
+            background-size: 10px;
+            padding-right: 30px;
         }
 
         .size-select:hover {
@@ -335,14 +388,8 @@
             /* width and flex removed for min/max labels, only .scale-label-min is used now */
         }
         .scale-label-min {
-            margin-right: 8px;
-            text-align: left;
-            font-size: 0.9em;
-            font-weight: bold;
-            color: #333;
-            display: inline;
-            margin-bottom: 0;
-            align-self: center;
+            margin-right: 0;
+            text-align: right;
         }
         .scale-label-max {
             margin-left: 0;
@@ -421,7 +468,7 @@
             cursor: pointer;
             transition: background-color 0.2s;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            margin-bottom: 40px;
+            margin-bottom: 20px;
         }
 
         #saveBtn:hover {
@@ -594,7 +641,7 @@
             border: none;
             color: #666;
             font-size: 1em;
-            font-weight: 700;
+            font-weight: 500;
             text-decoration: underline;
             text-decoration-color: rgba(102,102,102,0.25);
             text-underline-offset: 2px;
@@ -651,8 +698,8 @@
     <div class="container">
         <div class="controls">
             <div class="title">
-               
-                Cover Generator
+                <img src="/cover-generator/images/hbs-logo.png" alt="Harvard Business School Logo">
+                HBS Cover Generator
             </div>
             <div class="section">
                 <label>Canvas Size</label>
@@ -666,12 +713,141 @@
                 </div>
             </div>
             <div class="section">
-                <label>Background Color</label>
-                <div class="color-picker" id="backgroundColorPicker"></div>
+                <label>Color</label>
+                <div class="color-mode-toggle">
+                    <button class="color-mode-button selected" data-mode="background">Background</button>
+                    <button class="color-mode-button" data-mode="pattern">Pattern</button>
+                </div>
+                <div class="color-picker" id="colorPicker">
+                    <!-- Reds -->
+                    <div class="color-button color-harvard-crimson selected" data-color="#A41034">
+                        <div class="color-tooltip">Harvard Crimson</div>
+                    </div>
+                    <div class="color-button color-red-2" data-color="#E80538">
+                        <div class="color-tooltip">Red 2</div>
+                    </div>
+                    <div class="color-button color-red-3" data-color="#ED5541">
+                        <div class="color-tooltip">Red 3</div>
+                    </div>
+                    <div class="color-button color-red-4 pattern-selected" data-color="#E0B2A7">
+                        <div class="color-tooltip">Red 4</div>
+                    </div>
+                    
+                    <!-- Oranges -->
+                    <div class="color-button color-orange-1" data-color="#AE6429">
+                        <div class="color-tooltip">Orange 1</div>
+                    </div>
+                    <div class="color-button color-orange-2" data-color="#E87D1E">
+                        <div class="color-tooltip">Orange 2</div>
+                    </div>
+                    <div class="color-button color-orange-3" data-color="#EA9B20">
+                        <div class="color-tooltip">Orange 3</div>
+                    </div>
+                    <div class="color-button color-orange-4" data-color="#F7C76B">
+                        <div class="color-tooltip">Orange 4</div>
+                    </div>
+                    
+                    <!-- Yellows -->
+                    <div class="color-button color-yellow-1" data-color="#C29D00">
+                        <div class="color-tooltip">Yellow 1</div>
+                    </div>
+                    <div class="color-button color-yellow-2" data-color="#EBCD00">
+                        <div class="color-tooltip">Yellow 2</div>
+                    </div>
+                    <div class="color-button color-yellow-3" data-color="#F3E44D">
+                        <div class="color-tooltip">Yellow 3</div>
+                    </div>
+                    <div class="color-button color-yellow-4" data-color="#F4EF6B">
+                        <div class="color-tooltip">Yellow 4</div>
+                    </div>
+                    
+                    <!-- Greens -->
+                    <div class="color-button color-green-1" data-color="#026833">
+                        <div class="color-tooltip">Green 1</div>
+                    </div>
+                    <div class="color-button color-green-2" data-color="#52A52E">
+                        <div class="color-tooltip">Green 2</div>
+                    </div>
+                    <div class="color-button color-green-3" data-color="#9EC44D">
+                        <div class="color-tooltip">Green 3</div>
+                    </div>
+                    <div class="color-button color-green-4" data-color="#B3D56A">
+                        <div class="color-tooltip">Green 4</div>
+                    </div>
+                    
+                    <!-- Teals -->
+                    <div class="color-button color-teal-1" data-color="#006085">
+                        <div class="color-tooltip">Teal 1</div>
+                    </div>
+                    <div class="color-button color-teal-2" data-color="#00979D">
+                        <div class="color-tooltip">Teal 2</div>
+                    </div>
+                    <div class="color-button color-teal-3" data-color="#56BAB3">
+                        <div class="color-tooltip">Teal 3</div>
+                    </div>
+                    <div class="color-button color-teal-4" data-color="#9BD6C4">
+                        <div class="color-tooltip">Teal 4</div>
+                    </div>
+                    
+                    <!-- Blues -->
+                    <div class="color-button color-blue-1" data-color="#3B2883">
+                        <div class="color-tooltip">Blue 1</div>
+                    </div>
+                    <div class="color-button color-blue-2" data-color="#6578B4">
+                        <div class="color-tooltip">Blue 2</div>
+                    </div>
+                    <div class="color-button color-blue-3" data-color="#7FA4D1">
+                        <div class="color-tooltip">Blue 3</div>
+                    </div>
+                    <div class="color-button color-blue-4" data-color="#AAC8EB">
+                        <div class="color-tooltip">Blue 4</div>
+                    </div>
+                    
+                    <!-- Purples -->
+                    <div class="color-button color-purple-1" data-color="#57116A">
+                        <div class="color-tooltip">Purple 1</div>
+                    </div>
+                    <div class="color-button color-purple-2" data-color="#80408D">
+                        <div class="color-tooltip">Purple 2</div>
+                    </div>
+                    <div class="color-button color-purple-3" data-color="#9B7FAF">
+                        <div class="color-tooltip">Purple 3</div>
+                    </div>
+                    <div class="color-button color-purple-4" data-color="#C6B2D1">
+                        <div class="color-tooltip">Purple 4</div>
+                    </div>
+                    
+                    <!-- Magentas -->
+                    <div class="color-button color-magenta-1" data-color="#78244C">
+                        <div class="color-tooltip">Magenta 1</div>
+                    </div>
+                    <div class="color-button color-magenta-2" data-color="#C9006B">
+                        <div class="color-tooltip">Magenta 2</div>
+                    </div>
+                    <div class="color-button color-magenta-3" data-color="#D86199">
+                        <div class="color-tooltip">Magenta 3</div>
+                    </div>
+                    <div class="color-button color-magenta-4" data-color="#E599BA">
+                        <div class="color-tooltip">Magenta 4</div>
+                    </div>
+                    
+                    <!-- Grays -->
+                    <div class="color-button color-black" data-color="#000000">
+                        <div class="color-tooltip">Black</div>
+                    </div>
+                    <div class="color-button color-gray-2" data-color="#68666F">
+                        <div class="color-tooltip">Gray 2</div>
+                    </div>
+                    <div class="color-button color-gray-3" data-color="#A3A0A2">
+                        <div class="color-tooltip">Gray 3</div>
+                    </div>
+                    <div class="color-button color-gray-4" data-color="#D5D0CA">
+                        <div class="color-tooltip">Gray 4</div>
+                    </div>
+                </div>
             </div>
-            <div class="section">
-                <label>Pattern Color</label>
-                <div class="color-picker" id="patternColorPicker"></div>
+            <div class="copyright-left">
+                © <a href="https://sinelnikov.name/" target="_blank">Ilya Sinelnikov</a>, 2025
             </div>
         </div>
         <div class="canvas-area">
@@ -710,7 +886,7 @@
                 <button id="saveBtn">Save Image</button>
             </div>
             <div class="copyright">
-                © <a href="https://sinelnikov.name">Ilya Sinelnikov</a>, 2025.      Patterns and color palette adapted from <a href="https://identity.hbs.edu/graphics/" target="_blank">Harvard Business School identity guidelines</a>
+                Patterns and color palette adapted from <a href="https://identity.hbs.edu/graphics/" target="_blank">Harvard Business School identity guidelines</a>
             </div>
         </div>
     </div>
@@ -757,8 +933,7 @@
                 'Geometric': {
                     folder: 'HBS-Geometric-Patterns',
                     file: n => `HBS_pattern_geometric_${n}.svg`,
-                    name: n => `Geometric ${n}`,
-                    maxPattern: 3  // Limit to only 3 patterns
+                    name: n => `Geometric ${n}`
                 },
                 'Shields': {
                     folder: 'HBS-Shields-Patterns',
@@ -770,8 +945,7 @@
             // Build a flat list of all patterns
             const ALL_PATTERNS = [];
             for (const group of Object.keys(PATTERN_GROUP_CONFIG)) {
-                const maxPattern = PATTERN_GROUP_CONFIG[group].maxPattern || 4;
-                for (let i = 1; i <= maxPattern; i++) {
+                for (let i = 1; i <= 4; i++) {
                     ALL_PATTERNS.push({
                         group,
                         number: i,
@@ -856,7 +1030,8 @@
             let currentPatternViewBox = { svgWidth: 2246.51, svgHeight: 1532.98 };
 
             // Initialize all controls
-            setupColorPickers();
+            setupColorModeToggle();
+            setupColorPicker('colorPicker');
             setupSizePicker();
 
             // Initial update (now safe)
@@ -1081,106 +1256,57 @@
                 });
             }
 
-            function setupColorPickers() {
-                // Create color buttons for both pickers
-                const colorButtons = [
-                    // Reds
-                    { color: '#A41034', name: 'Harvard Crimson', class: 'color-harvard-crimson' },
-                    { color: '#E80538', name: 'Red 2', class: 'color-red-2' },
-                    { color: '#ED5541', name: 'Red 3', class: 'color-red-3' },
-                    { color: '#E0B2A7', name: 'Red 4', class: 'color-red-4' },
-                    
-                    // Oranges
-                    { color: '#AE6429', name: 'Orange 1', class: 'color-orange-1' },
-                    { color: '#E87D1E', name: 'Orange 2', class: 'color-orange-2' },
-                    { color: '#EA9B20', name: 'Orange 3', class: 'color-orange-3' },
-                    { color: '#F7C76B', name: 'Orange 4', class: 'color-orange-4' },
-                    
-                    // Yellows
-                    { color: '#C29D00', name: 'Yellow 1', class: 'color-yellow-1' },
-                    { color: '#EBCD00', name: 'Yellow 2', class: 'color-yellow-2' },
-                    { color: '#F3E44D', name: 'Yellow 3', class: 'color-yellow-3' },
-                    { color: '#F4EF6B', name: 'Yellow 4', class: 'color-yellow-4' },
-                    
-                    // Greens
-                    { color: '#026833', name: 'Green 1', class: 'color-green-1' },
-                    { color: '#52A52E', name: 'Green 2', class: 'color-green-2' },
-                    { color: '#9EC44D', name: 'Green 3', class: 'color-green-3' },
-                    { color: '#B3D56A', name: 'Green 4', class: 'color-green-4' },
-                    
-                    // Teals
-                    { color: '#006085', name: 'Teal 1', class: 'color-teal-1' },
-                    { color: '#00979D', name: 'Teal 2', class: 'color-teal-2' },
-                    { color: '#56BAB3', name: 'Teal 3', class: 'color-teal-3' },
-                    { color: '#9BD6C4', name: 'Teal 4', class: 'color-teal-4' },
-                    
-                    // Blues
-                    { color: '#3B2883', name: 'Blue 1', class: 'color-blue-1' },
-                    { color: '#6578B4', name: 'Blue 2', class: 'color-blue-2' },
-                    { color: '#7FA4D1', name: 'Blue 3', class: 'color-blue-3' },
-                    { color: '#AAC8EB', name: 'Blue 4', class: 'color-blue-4' },
-                    
-                    // Purples
-                    { color: '#57116A', name: 'Purple 1', class: 'color-purple-1' },
-                    { color: '#80408D', name: 'Purple 2', class: 'color-purple-2' },
-                    { color: '#9B7FAF', name: 'Purple 3', class: 'color-purple-3' },
-                    { color: '#C6B2D1', name: 'Purple 4', class: 'color-purple-4' },
-                    
-                    // Magentas
-                    { color: '#78244C', name: 'Magenta 1', class: 'color-magenta-1' },
-                    { color: '#C9006B', name: 'Magenta 2', class: 'color-magenta-2' },
-                    { color: '#D86199', name: 'Magenta 3', class: 'color-magenta-3' },
-                    { color: '#E599BA', name: 'Magenta 4', class: 'color-magenta-4' },
-                    
-                    // Grays
-                    { color: '#000000', name: 'Black', class: 'color-black' },
-                    { color: '#68666F', name: 'Gray 2', class: 'color-gray-2' },
-                    { color: '#A3A0A2', name: 'Gray 3', class: 'color-gray-3' },
-                    { color: '#D5D0CA', name: 'Gray 4', class: 'color-gray-4' }
-                ];
+            function setupColorModeToggle() {
+                const toggleButtons = document.querySelectorAll('.color-mode-button');
+                const colorPicker = document.getElementById('colorPicker');
+                
+                // Set initial state
+                updateColorPickerState();
 
-                // Create and populate both color pickers
-                const bgPicker = document.getElementById('backgroundColorPicker');
-                const patternPicker = document.getElementById('patternColorPicker');
-
-                colorButtons.forEach(button => {
-                    // Create button for background picker
-                    const bgButton = document.createElement('div');
-                    bgButton.className = `color-button ${button.class}`;
-                    bgButton.dataset.color = button.color;
-                    bgButton.innerHTML = `<div class="color-tooltip">${button.name}</div>`;
-                    bgButton.addEventListener('click', () => {
-                        currentBgColor = button.color;
+                toggleButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        toggleButtons.forEach(b => b.classList.remove('selected'));
+                        button.classList.add('selected');
+                        currentColorMode = button.dataset.mode;
                         updateColorPickerState();
-                        updateCover();
                     });
-                    bgPicker.appendChild(bgButton);
-
-                    // Create button for pattern picker
-                    const patternButton = document.createElement('div');
-                    patternButton.className = `color-button ${button.class}`;
-                    patternButton.dataset.color = button.color;
-                    patternButton.innerHTML = `<div class="color-tooltip">${button.name}</div>`;
-                    patternButton.addEventListener('click', () => {
-                        currentPatternColor = button.color;
-                        updateColorPickerState();
-                        updateCover();
-                    });
-                    patternPicker.appendChild(patternButton);
                 });
             }
 
             function updateColorPickerState() {
-                // Update background color picker
-                const bgButtons = document.querySelectorAll('#backgroundColorPicker .color-button');
-                bgButtons.forEach(button => {
-                    button.classList.toggle('selected', button.dataset.color === currentBgColor);
+                const colorPicker = document.getElementById('colorPicker');
+                const buttons = colorPicker.querySelectorAll('.color-button');
+                
+                // Clear all selections first
+                buttons.forEach(button => {
+                    button.classList.remove('selected', 'pattern-selected');
                 });
+                
+                // Add selection based on current colors
+                buttons.forEach(button => {
+                    if (currentColorMode === 'background' && button.dataset.color === currentBgColor) {
+                        button.classList.add('selected');
+                    } else if (currentColorMode === 'pattern' && button.dataset.color === currentPatternColor) {
+                        button.classList.add('pattern-selected');
+                    }
+                });
+            }
 
-                // Update pattern color picker
-                const patternButtons = document.querySelectorAll('#patternColorPicker .color-button');
-                patternButtons.forEach(button => {
-                    button.classList.toggle('selected', button.dataset.color === currentPatternColor);
+            function setupColorPicker(pickerId) {
+                const picker = document.getElementById(pickerId);
+                const buttons = picker.querySelectorAll('.color-button');
+
+                buttons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        const color = button.dataset.color;
+                        if (currentColorMode === 'background') {
+                            currentBgColor = color;
+                        } else {
+                            currentPatternColor = color;
+                        }
+                        updateColorPickerState();
+                        updateCover();
+                    });
                 });
             }
 

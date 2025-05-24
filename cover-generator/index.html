@@ -24,6 +24,16 @@
     <meta property="twitter:description" content="Create beautiful social media covers and blog headers with Harvard Business School inspired patterns">
     <meta property="twitter:image" content="https://sinelnikov.name/cover-generator/images/open-graph.png">
 
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y8EFWM0GW9"></script>
+    <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-Y8EFWM0GW9');
+    </script>
+
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -1326,6 +1336,12 @@
                             link.href = canvas.toDataURL('image/png', 1.0);
                             link.click();
                             
+                            // Track download event
+                            gtag('event', 'image_download', {
+                                'event_category': 'engagement',
+                                'event_label': 'Image Download'
+                            });
+                            
                             // Cleanup
                             URL.revokeObjectURL(svgUrl);
                             resolve();
@@ -1421,6 +1437,20 @@
                 e.preventDefault();
                 randomizeColors();
             });
+
+            function updatePattern() {
+                const scale = parseFloat(document.getElementById('patternScale').value);
+                document.getElementById('sliderValueLabel').textContent = scale.toFixed(1) + '×';
+                
+                // Track pattern scale change
+                gtag('event', 'pattern_scale_change', {
+                    'event_category': 'interaction',
+                    'event_label': 'Pattern Scale',
+                    'value': scale
+                });
+                
+                drawPattern();
+            }
         });
     </script>
 </body>

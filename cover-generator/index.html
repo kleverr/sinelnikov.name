@@ -870,14 +870,6 @@
                 };
                 patternPicker.appendChild(btn);
             });
-            // Select the first pattern by default
-            if (ALL_PATTERNS.length > 0) {
-                patternPicker.firstChild.classList.add('selected');
-                currentPatternGroup = ALL_PATTERNS[0].group;
-                currentPattern = ALL_PATTERNS[0].number;
-                if (!currentBgColor) currentBgColor = "#A41034";
-                if (!currentPatternColor) currentPatternColor = "#E0B2A7";
-            }
 
             // DOM elements must be defined before calling update functions
             const pattern = document.getElementById('architecturePattern');

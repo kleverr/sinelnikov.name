@@ -782,7 +782,8 @@
                 'Architecture': {
                     folder: 'HBS-Architecture-Patterns',
                     file: n => `HBS_pattern_architecture_${n}.svg`,
-                    name: n => `Architecture ${n}`
+                    name: n => `Architecture ${n}`,
+                    maxPattern: 3  // Limit to only 3 patterns
                 },
                 'Fences': {
                     folder: 'HBS-Fences-Patterns',
@@ -990,6 +991,12 @@
                 } catch (error) {
                     console.error('Error loading pattern:', error, 'Group:', currentPatternGroup, 'Pattern:', currentPattern);
                     alert('Error loading pattern. Please make sure the server is running and the pattern exists.\n' + error);
+                    // Clear the pattern image if fetch fails
+                    patternImage.removeAttribute('href');
+                    if (patternImage.dataset.url) {
+                        URL.revokeObjectURL(patternImage.dataset.url);
+                        delete patternImage.dataset.url;
+                    }
                 }
             }
 
@@ -1368,8 +1375,9 @@
                 const randomGroup = patternGroups[Math.floor(Math.random() * patternGroups.length)];
                 currentPatternGroup = randomGroup;
 
-                // 2. Random pattern (1-4)
-                const randomPattern = (Math.floor(Math.random() * 4) + 1).toString();
+                // 2. Random pattern (respect maxPattern for group)
+                const maxPattern = PATTERN_GROUP_CONFIG[randomGroup].maxPattern || 4;
+                const randomPattern = (Math.floor(Math.random() * maxPattern) + 1).toString();
                 currentPattern = randomPattern;
 
                 // Update pattern button UI

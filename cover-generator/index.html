@@ -675,6 +675,44 @@
             max-width: 480px;
             box-sizing: border-box;
         }
+
+        .random-colors-btn {
+            margin-top: 24px;
+            display: inline-block;
+            background: #ececec;
+            color: #333;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 16px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s;
+            width: 160px;
+            box-sizing: border-box;
+        }
+        .random-colors-btn:hover {
+            background: #d5d5d5;
+        }
+
+        .canvas-actions-row {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 16px;
+            margin-bottom: 0;
+            gap: 12px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .randomize-link, #saveBtn {
+            text-align: center;
+            align-self: center;
+        }
+        #saveBtn {
+            margin: 0;
+        }
     </style>
 </head>
 <body>
@@ -707,15 +745,20 @@
             <div class="section">
                 <label>Pattern Color</label>
                 <div class="color-picker" id="patternColorPicker"></div>
+                <button id="randomizeColorsLink" class="random-colors-btn">Random colors</button>
             </div>
         </div>
         <div class="canvas-area">
             <div class="pattern-picker" id="patternPicker"></div>
             <div class="canvas-area-inner">
-                <div class="randomize-link-container">
-                    <a href="#" class="randomize-link">Randomize all</a>
-                    <span class="randomize-link-separator">·</span>
-                    <a href="#" class="randomize-link" id="randomizeColorsLink">Only colors</a>
+                <div class="scale-control">
+                    <div class="slider-row" style="position: relative; width: 100%; max-width: 384px;">
+                        <span class="scale-label-min" style="text-align: left; width: auto; flex: 0 0 auto;">Pattern scale:</span>
+                        <div class="slider-container" style="position: relative; flex: 1 1 auto; width: 100%;">
+                            <input type="range" id="patternScale" min="0.2" max="5" step="0.1" value="1" style="width: 100%;">
+                            <span id="sliderValueLabel" class="slider-value-label">1.0×</span>
+                        </div>
+                    </div>
                 </div>
                 <div class="canvas-container">
                     <svg id="coverCanvas" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
@@ -732,17 +775,11 @@
                         </defs>
                         <rect id="patternOverlay" width="100%" height="100%" fill="url(#architecturePattern)" y="0" />
                     </svg>
-                </div>
-                <div class="scale-control">
-                    <div class="slider-row" style="position: relative; width: 100%; max-width: 384px;">
-                        <span class="scale-label-min" style="text-align: left; width: auto; flex: 0 0 auto;">Pattern scale:</span>
-                        <div class="slider-container" style="position: relative; flex: 1 1 auto; width: 100%;">
-                            <input type="range" id="patternScale" min="0.2" max="5" step="0.1" value="1" style="width: 100%;">
-                            <span id="sliderValueLabel" class="slider-value-label">1.0×</span>
-                        </div>
+                    <div class="canvas-actions-row">
+                        <a href="#" class="randomize-link">Surprise me!</a>
+                        <button id="saveBtn">Save Image</button>
                     </div>
                 </div>
-                <button id="saveBtn">Save Image</button>
             </div>
             <div class="copyright">
                 © <a href="https://sinelnikov.name">Ilya Sinelnikov</a>, 2025.      Patterns and color palette adapted from <a href="https://identity.hbs.edu/graphics/" target="_blank">Harvard Business School identity guidelines</a>
@@ -1393,12 +1430,107 @@
                 currentBgColor = bgColor;
                 currentPatternColor = patternColor;
 
+                // 6. Random pattern scale
+                const patternScaleInput = document.getElementById('patternScale');
+                const min = parseFloat(patternScaleInput.min);
+                const max = parseFloat(patternScaleInput.max);
+                const step = parseFloat(patternScaleInput.step);
+                // Calculate number of steps
+                const steps = Math.round((max - min) / step);
+                const randomStep = Math.floor(Math.random() * (steps + 1));
+                const randomScale = (min + randomStep * step).toFixed(2);
+                patternScaleInput.value = randomScale;
+                // Update the slider label and pattern dimensions
+                const label = document.getElementById('sliderValueLabel');
+                if (label) {
+                    label.textContent = parseFloat(randomScale).toFixed(1) + '×';
+                    // Update label position as in attachSliderHandler
+                    const percent = (parseFloat(randomScale) - min) / (max - min);
+                    const sliderWidth = patternScaleInput.offsetWidth;
+                    const thumbSize = 18;
+                    const closer = 0.35;
+                    const labelX = percent * (sliderWidth - thumbSize) * (1 - closer) + thumbSize / 2 + percent * (sliderWidth - thumbSize) * closer;
+                    label.style.left = `${labelX}px`;
+                }
+                updatePatternDimensions();
+
                 // Update color picker UI
                 updateColorPickerState();
 
                 // Update cover
                 updateCover();
             }
+
+            // --- INITIALIZE COVER FUNCTIONALITY ---
+            async function initializeCover() {
+                // 1. Random pattern group
+                const patternGroups = Object.keys(PATTERN_GROUP_CONFIG);
+                const randomGroup = patternGroups[Math.floor(Math.random() * patternGroups.length)];
+                currentPatternGroup = randomGroup;
+
+                // 2. Random pattern (respect maxPattern for group)
+                const maxPattern = PATTERN_GROUP_CONFIG[randomGroup].maxPattern || 4;
+                const randomPattern = (Math.floor(Math.random() * maxPattern) + 1).toString();
+                currentPattern = randomPattern;
+
+                // Update pattern button UI
+                document.querySelectorAll('.pattern-button').forEach(btn => {
+                    btn.classList.toggle('selected', btn.dataset.group === randomGroup && btn.dataset.pattern === randomPattern);
+                });
+
+                // 3. Get all color values
+                const colorButtons = Array.from(document.querySelectorAll('.color-button'));
+                const colorValues = colorButtons.map(btn => btn.dataset.color);
+
+                // 4. Random background color
+                let bgColor = colorValues[Math.floor(Math.random() * colorValues.length)];
+
+                // 5. Random pattern color (must not match bgColor)
+                let patternColor;
+                do {
+                    patternColor = colorValues[Math.floor(Math.random() * colorValues.length)];
+                } while (patternColor === bgColor && colorValues.length > 1);
+
+                currentBgColor = bgColor;
+                currentPatternColor = patternColor;
+
+                // 6. Set pattern scale to 2.0 (or max/min if out of bounds)
+                const patternScaleInput = document.getElementById('patternScale');
+                const min = parseFloat(patternScaleInput.min);
+                const max = parseFloat(patternScaleInput.max);
+                let scale = 2.0;
+                if (scale < min) scale = min;
+                if (scale > max) scale = max;
+                patternScaleInput.value = scale;
+                // Update the slider label and pattern dimensions
+                const label = document.getElementById('sliderValueLabel');
+                if (label) {
+                    label.textContent = scale.toFixed(1) + '×';
+                    // Update label position as in attachSliderHandler
+                    const percent = (scale - min) / (max - min);
+                    const sliderWidth = patternScaleInput.offsetWidth;
+                    const thumbSize = 18;
+                    const closer = 0.35;
+                    const labelX = percent * (sliderWidth - thumbSize) * (1 - closer) + thumbSize / 2 + percent * (sliderWidth - thumbSize) * closer;
+                    label.style.left = `${labelX}px`;
+                }
+                updatePatternDimensions();
+
+                // Update color picker UI
+                updateColorPickerState();
+
+                // Update cover
+                updateCover();
+            }
+
+            // Call initializeCover on page load
+            initializeCover();
+
+            // Keep the randomize links working
+            document.querySelector('.randomize-link').addEventListener('click', function(e) {
+                e.preventDefault();
+                randomizeCover();
+            });
 
             async function randomizeColors() {
                 // Get all color values
@@ -1424,15 +1556,7 @@
                 updateCover();
             }
 
-            // Call randomizeCover on page load
-            randomizeCover();
-
-            // Keep the randomize links working
-            document.querySelector('.randomize-link').addEventListener('click', function(e) {
-                e.preventDefault();
-                randomizeCover();
-            });
-
+            // In DOMContentLoaded, restore randomizeColors to the randomizeColorsLink event
             document.getElementById('randomizeColorsLink').addEventListener('click', function(e) {
                 e.preventDefault();
                 randomizeColors();

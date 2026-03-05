@@ -21,7 +21,12 @@ const fileEl = document.getElementById('file');
 const chooseBtnEl = document.getElementById('choose-btn');
 const dropZoneEl = document.getElementById('drop-zone');
 const outputEl = document.getElementById('output');
+const previewOutputEl = document.getElementById('preview-output');
+const copyPreviewBtnEl = document.getElementById('copy-preview');
 const downloadBtnEl = document.getElementById('download-json');
+const tabButtons = Array.from(document.querySelectorAll('.tab-btn'));
+const tabPreviewEl = document.getElementById('tab-preview');
+const tabJsonEl = document.getElementById('tab-json');
 
 const metaStatusEl = document.getElementById('meta-status');
 const metaModelEl = document.getElementById('meta-model');
@@ -45,6 +50,7 @@ const metaLanguagesEl = document.getElementById('meta-languages');
 const metaResponseBytesEl = document.getElementById('meta-response-bytes');
 
 let latestPayload = null;
+let latestPreviewText = '';
 
 const INT_FMT = new Intl.NumberFormat('en-US');
 const DEC3_FMT = new Intl.NumberFormat('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
@@ -208,6 +214,64 @@ function renderJson(payload) {
 
   latestPayload = payload;
   downloadBtnEl.disabled = false;
+  updatePreview(payload);
+}
+
+function extractTranscriptText(payload) {
+  const result = payload?.result;
+
+  if (result && typeof result.text === 'string' && result.text.trim()) {
+    return result.text.trim();
+  }
+
+  if (result && Array.isArray(result.utterances) && result.utterances.length) {
+    const lines = result.utterances
+      .map((utterance) => (utterance && typeof utterance.text === 'string' ? utterance.text.trim() : ''))
+      .filter(Boolean);
+
+    if (lines.length) return lines.join('\n');
+  }
+
+  return '';
+}
+
+function updatePreview(payload) {
+  const transcriptText = extractTranscriptText(payload);
+
+  latestPreviewText = transcriptText;
+  if (transcriptText) {
+    previewOutputEl.textContent = transcriptText;
+    copyPreviewBtnEl.disabled = false;
+  } else {
+    previewOutputEl.textContent = payload?.success ? 'No transcript returned.' : 'No transcript yet.';
+    copyPreviewBtnEl.disabled = true;
+  }
+}
+
+function setActiveTab(tabName) {
+  const isPreview = tabName === 'preview';
+
+  tabPreviewEl.classList.toggle('active', isPreview);
+  tabJsonEl.classList.toggle('active', !isPreview);
+
+  for (const button of tabButtons) {
+    const active = button.dataset.tab === tabName;
+    button.classList.toggle('active', active);
+  }
+}
+
+async function copyTextToClipboard(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const tempTextArea = document.createElement('textarea');
+  tempTextArea.value = text;
+  document.body.appendChild(tempTextArea);
+  tempTextArea.select();
+  document.execCommand('copy');
+  tempTextArea.remove();
 }
 
 function deriveClientFileType(file) {
@@ -560,6 +624,12 @@ chooseBtnEl.addEventListener('click', (event) => {
   fileEl.click();
 });
 
+for (const button of tabButtons) {
+  button.addEventListener('click', () => {
+    setActiveTab(button.dataset.tab || 'preview');
+  });
+}
+
 dropZoneEl.addEventListener('click', () => {
   fileEl.click();
 });
@@ -607,4 +677,23 @@ downloadBtnEl.addEventListener('click', () => {
   URL.revokeObjectURL(url);
 });
 
+copyPreviewBtnEl.addEventListener('click', async () => {
+  if (!latestPreviewText) return;
+
+  try {
+    await copyTextToClipboard(latestPreviewText);
+    const previousText = copyPreviewBtnEl.textContent;
+    copyPreviewBtnEl.textContent = 'Copied';
+    setTimeout(() => {
+      copyPreviewBtnEl.textContent = previousText || 'Copy text';
+    }, 1200);
+  } catch {
+    copyPreviewBtnEl.textContent = 'Copy failed';
+    setTimeout(() => {
+      copyPreviewBtnEl.textContent = 'Copy text';
+    }, 1200);
+  }
+});
+
+setActiveTab('preview');
 renderJson({});

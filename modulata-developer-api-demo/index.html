@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Developer API Demo tool</title>
+    <title>Developer API Demo</title>
     <style>
       :root {
         --bg: #120021;
@@ -220,7 +220,38 @@
         gap: 10px;
       }
 
-      .download-btn {
+      .tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      .tab-btn {
+        border: 1px solid #5a3a80;
+        color: #cdbfe3;
+        background: #24103c;
+        border-radius: 8px;
+        padding: 6px 12px;
+        font: inherit;
+        cursor: pointer;
+      }
+
+      .tab-btn.active {
+        border-color: #5fa6ff;
+        color: #dcedff;
+        background: #132f56;
+      }
+
+      .tab-panel {
+        display: none;
+      }
+
+      .tab-panel.active {
+        display: block;
+      }
+
+      .download-btn,
+      .copy-btn {
         border: 1px solid #5fa6ff;
         color: #dcedff;
         background: #132f56;
@@ -233,6 +264,35 @@
       .download-btn:disabled {
         opacity: 0.45;
         cursor: not-allowed;
+      }
+
+      .copy-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      .preview-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .preview-body {
+        margin-top: 12px;
+        border: 1px solid #35204f;
+        border-radius: 10px;
+        background: #140327;
+        color: #fff;
+        padding: 14px;
+        min-height: 720px;
+        max-height: 78vh;
+        overflow: auto;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        font-size: 0.93rem;
+        line-height: 1.56;
       }
 
       pre {
@@ -296,7 +356,7 @@
   <body>
     <main class="layout">
       <section class="panel">
-        <h1>Developer API Demo tool</h1>
+        <h1>Developer API Demo</h1>
 
         <div class="action-combo">
           <div class="model-block">
@@ -341,11 +401,26 @@
       </section>
 
       <section class="panel">
-        <div class="json-head">
-          <h2>JSON</h2>
-          <button id="download-json" class="download-btn" type="button" disabled>Download JSON</button>
+        <div class="tabs">
+          <button class="tab-btn active" type="button" data-tab="preview">Preview</button>
+          <button class="tab-btn" type="button" data-tab="json">JSON</button>
         </div>
-        <pre id="output">{}</pre>
+
+        <div id="tab-preview" class="tab-panel active">
+          <div class="preview-head">
+            <h2>Preview</h2>
+            <button id="copy-preview" class="copy-btn" type="button" disabled>Copy text</button>
+          </div>
+          <div id="preview-output" class="preview-body">No transcript yet.</div>
+        </div>
+
+        <div id="tab-json" class="tab-panel">
+          <div class="json-head">
+            <h2>JSON</h2>
+            <button id="download-json" class="download-btn" type="button" disabled>Download JSON</button>
+          </div>
+          <pre id="output">{}</pre>
+        </div>
       </section>
     </main>
 

@@ -4,6 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Developer API Demo</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='0.9em' font-size='90'%3E%F0%9F%9B%A0%EF%B8%8F%3C/text%3E%3C/svg%3E"
+    />
     <style>
       :root {
         --bg: #120021;
@@ -22,6 +26,8 @@
       body {
         margin: 0;
         min-height: 100vh;
+        display: flex;
+        flex-direction: column;
         font-family: 'DM Sans', 'Segoe UI', sans-serif;
         color: var(--text);
         background: radial-gradient(circle at 10% -20%, #2a0b48 0, transparent 45%), var(--bg);
@@ -34,14 +40,29 @@
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 16px;
+        align-items: stretch;
+        width: 100%;
+      }
+
+      .footer {
+        margin-top: 14px;
+        text-align: center;
+        color: #9f8ebd;
+        font-size: 0.82rem;
       }
 
       .panel {
-        background: var(--panel);
-        border: 1px solid var(--panel-border);
-        border-radius: 14px;
-        padding: 16px;
-        box-shadow: 0 16px 34px rgba(0, 0, 0, 0.25);
+        background: transparent;
+        border: none;
+        border-radius: 0;
+        padding: 0;
+        box-shadow: none;
+      }
+
+      .panel-output {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
       }
 
       h1,
@@ -67,13 +88,59 @@
         align-items: stretch;
       }
 
-      .model-block {
+      .feature-controls {
+        margin-top: 2px;
         display: flex;
-        gap: 8px;
+        flex-wrap: nowrap;
+        gap: 6px;
         align-items: center;
+        white-space: nowrap;
+      }
+
+      .feature-title {
+        color: #bfb2d5;
+        font-size: 0.8rem;
+        margin-right: 0;
+        white-space: nowrap;
+      }
+
+      .feature-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        color: #e2d9f4;
+        font-size: 0.8rem;
+        user-select: none;
+        white-space: nowrap;
+      }
+
+      .feature-item.disabled {
+        opacity: 0.58;
+        cursor: help;
+      }
+
+      .feature-item input[type='checkbox'] {
+        accent-color: #8c67ff;
+        margin: 0;
+      }
+
+      .feature-note {
+        display: none;
+      }
+
+      .model-block {
+        display: grid;
+        gap: 6px;
+        align-content: start;
         border-radius: 10px;
         background: #17082b;
         padding: 10px;
+      }
+
+      .model-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
       }
 
       .label {
@@ -213,41 +280,70 @@
         }
       }
 
-      .json-head {
+      .viewer-shell {
+        margin-top: 14px;
+        border: none;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #140327;
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 720px;
+      }
+
+      .panel-title-spacer {
+        height: calc(1.7rem * 1.2);
+      }
+
+      .tabs-row {
         display: flex;
         justify-content: space-between;
-        align-items: center;
+        align-items: flex-end;
         gap: 10px;
+        border-bottom: 1px solid #3f285c;
+        padding: 0 12px;
       }
 
       .tabs {
         display: flex;
-        gap: 8px;
-        margin-bottom: 12px;
+        gap: 0;
+        margin: 0;
+        border-bottom: none;
       }
 
       .tab-btn {
-        border: 1px solid #5a3a80;
-        color: #cdbfe3;
-        background: #24103c;
-        border-radius: 8px;
-        padding: 6px 12px;
+        border: none;
+        color: #a996c6;
+        background: transparent;
+        border-radius: 0;
+        padding: 8px 14px;
         font: inherit;
         cursor: pointer;
+        margin: 0;
+        border-top: 3px solid transparent;
       }
 
       .tab-btn.active {
-        border-color: #5fa6ff;
+        border-top-color: #ff4df7;
         color: #dcedff;
-        background: #132f56;
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .tab-btn:hover:not(.active) {
+        color: #cdbfe3;
+        background: rgba(255, 255, 255, 0.04);
       }
 
       .tab-panel {
         display: none;
+        flex: 1;
+        min-height: 0;
       }
 
       .tab-panel.active {
-        display: block;
+        display: flex;
+        flex-direction: column;
       }
 
       .download-btn,
@@ -256,9 +352,17 @@
         color: #dcedff;
         background: #132f56;
         border-radius: 8px;
-        padding: 6px 10px;
+        padding: 5px 10px;
         font: inherit;
         cursor: pointer;
+        margin: 0;
+      }
+
+      .tabs-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 40px;
       }
 
       .download-btn:disabled {
@@ -271,22 +375,15 @@
         cursor: not-allowed;
       }
 
-      .preview-head {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 10px;
-      }
-
       .preview-body {
-        margin-top: 12px;
-        border: 1px solid #35204f;
-        border-radius: 10px;
-        background: #140327;
+        margin: 0;
+        border: none;
+        border-radius: 0;
+        background: transparent;
         color: #fff;
         padding: 14px;
-        min-height: 720px;
-        max-height: 78vh;
+        flex: 1;
+        min-height: 0;
         overflow: auto;
         white-space: pre-wrap;
         overflow-wrap: anywhere;
@@ -295,15 +392,130 @@
         line-height: 1.56;
       }
 
-      pre {
-        margin: 12px 0 0;
-        border: 1px solid #35204f;
+      .speaker-preview {
+        display: grid;
+        gap: 12px;
+      }
+
+      .speaker-turn {
+        display: grid;
+        gap: 6px;
+        justify-items: start;
+      }
+
+      .utterance-meta {
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .utterance-time {
+        color: #a89abc;
+        font-size: 0.76rem;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .speaker-chip {
+        display: inline-block;
+        color: #b7a7d3;
+        font-size: 0.72rem;
+        font-variant-caps: all-small-caps;
+        letter-spacing: 0.06em;
+        line-height: 1.1;
+      }
+
+      .signal-pill {
+        display: inline-block;
+        border-radius: 7px;
+        padding: 1px 7px;
+        font-size: 0.72rem;
+        line-height: 1.25;
+      }
+
+      .signal-pill.emotion {
+        color: #ffd3f8;
+        background: rgba(255, 86, 226, 0.18);
+      }
+
+      .signal-pill.accent {
+        color: #d5efff;
+        background: rgba(77, 169, 255, 0.2);
+      }
+
+      .signal-pill.language {
+        color: #d8e8ff;
+        background: rgba(120, 124, 255, 0.2);
+      }
+
+      .speaker-bubble {
+        margin: 0;
+        padding: 9px 11px;
         border-radius: 10px;
-        background: #140327;
+        background: #1e0d35;
+        border: 1px solid #432863;
+        color: #fff;
+        font-size: 0.93rem;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+
+      .pii-token {
+        border: none;
+        border-radius: 4px;
+        padding: 0 4px;
+        margin: 0 1px;
+        font: inherit;
+        line-height: 1.25;
+        color: inherit;
+        background: rgba(255, 255, 255, 0.18);
+        filter: blur(4px);
+        cursor: pointer;
+        transition: filter 0.12s ease, background-color 0.12s ease;
+      }
+
+      .pii-token:hover {
+        background: rgba(255, 255, 255, 0.24);
+      }
+
+      .pii-token.revealed {
+        filter: none;
+        background: rgba(95, 166, 255, 0.24);
+      }
+
+      .preview-processing {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        color: #d8c6ff;
+        font-weight: 600;
+      }
+
+      .preview-processing .dot {
+        opacity: 0.25;
+        animation: pulseDot 1.2s infinite ease-in-out;
+      }
+
+      .preview-processing .dot:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+
+      .preview-processing .dot:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+
+      pre {
+        margin: 0;
+        border: none;
+        border-radius: 0;
+        background: transparent;
         color: #fff;
         padding: 14px;
-        min-height: 720px;
-        max-height: 78vh;
+        flex: 1;
+        min-height: 0;
+        width: 100%;
         overflow: auto;
         white-space: pre-wrap;
         overflow-wrap: anywhere;
@@ -337,8 +549,8 @@
           grid-template-columns: 1fr;
         }
 
-        pre {
-          min-height: 320px;
+        .viewer-shell {
+          min-height: 420px;
         }
       }
 
@@ -355,16 +567,39 @@
   </head>
   <body>
     <main class="layout">
-      <section class="panel">
+      <section class="panel panel-output">
         <h1>Developer API Demo</h1>
 
         <div class="action-combo">
           <div class="model-block">
-            <span class="label">Model</span>
-            <select id="model">
-              <option value="batch-fast">velma-2-stt-batch-english-vfast</option>
-              <option value="batch">velma-2-stt-batch</option>
-            </select>
+            <div class="model-row">
+              <span class="label">Model</span>
+              <select id="model">
+                <option value="batch-fast">velma-2-stt-batch-english-vfast</option>
+                <option value="batch">velma-2-stt-batch</option>
+              </select>
+            </div>
+
+            <div id="feature-controls" class="feature-controls">
+              <span class="feature-title">Options:</span>
+              <label class="feature-item">
+                <input id="opt-speaker-diarization" type="checkbox" checked />
+                <span>Diarization</span>
+              </label>
+              <label class="feature-item">
+                <input id="opt-emotion-signal" type="checkbox" />
+                <span>Emotion</span>
+              </label>
+              <label class="feature-item">
+                <input id="opt-accent-signal" type="checkbox" />
+                <span>Accent</span>
+              </label>
+              <label class="feature-item">
+                <input id="opt-pii-phi-tagging" type="checkbox" />
+                <span>PII/PHI</span>
+              </label>
+            </div>
+            <div id="feature-note" class="feature-note"></div>
           </div>
 
           <div id="drop-zone" class="mini-upload">
@@ -377,7 +612,10 @@
         <div class="table-wrap">
           <table>
             <tr><th>Status</th><td><span id="meta-status" class="status">Waiting</span></td></tr>
+            <tr><th>Failure Type</th><td id="meta-failure-type">N/A</td></tr>
+            <tr><th>Failure Name</th><td id="meta-failure-name">N/A</td></tr>
             <tr><th>Model</th><td id="meta-model">-</td></tr>
+            <tr><th>Requested Features</th><td id="meta-options">-</td></tr>
             <tr><th>File Name</th><td id="meta-file-name">-</td></tr>
             <tr><th>File Type</th><td id="meta-file-type">-</td></tr>
             <tr><th>File Size</th><td id="meta-file-size">-</td></tr>
@@ -395,34 +633,39 @@
             <tr><th>Utterances</th><td id="meta-utterances">-</td></tr>
             <tr><th>Speakers</th><td id="meta-speakers">-</td></tr>
             <tr><th>Languages</th><td id="meta-languages">-</td></tr>
+            <tr><th>Emotions</th><td id="meta-emotions">-</td></tr>
+            <tr><th>Accents</th><td id="meta-accents">-</td></tr>
+            <tr><th>PII/PHI Tags</th><td id="meta-pii-tags">-</td></tr>
             <tr><th>Response Size</th><td id="meta-response-bytes">-</td></tr>
           </table>
         </div>
       </section>
 
       <section class="panel">
-        <div class="tabs">
-          <button class="tab-btn active" type="button" data-tab="preview">Preview</button>
-          <button class="tab-btn" type="button" data-tab="json">JSON</button>
-        </div>
-
-        <div id="tab-preview" class="tab-panel active">
-          <div class="preview-head">
-            <h2>Preview</h2>
-            <button id="copy-preview" class="copy-btn" type="button" disabled>Copy text</button>
+        <div class="panel-title-spacer" aria-hidden="true"></div>
+        <div class="viewer-shell">
+          <div class="tabs-row">
+            <div class="tabs">
+              <button class="tab-btn active" type="button" data-tab="preview">Transcript</button>
+              <button class="tab-btn" type="button" data-tab="json">API Response</button>
+            </div>
+            <div class="tabs-actions">
+              <button id="copy-preview" class="copy-btn" type="button">Copy transcript</button>
+              <button id="copy-json" class="copy-btn" type="button" hidden>Copy json</button>
+            </div>
           </div>
-          <div id="preview-output" class="preview-body">No transcript yet.</div>
-        </div>
 
-        <div id="tab-json" class="tab-panel">
-          <div class="json-head">
-            <h2>JSON</h2>
-            <button id="download-json" class="download-btn" type="button" disabled>Download JSON</button>
+          <div id="tab-preview" class="tab-panel active">
+            <div id="preview-output" class="preview-body">No transcript yet.</div>
           </div>
-          <pre id="output">{}</pre>
+
+          <div id="tab-json" class="tab-panel">
+            <pre id="output">{}</pre>
+          </div>
         </div>
       </section>
     </main>
+    <footer class="footer">&copy; Ilya Sinelnikov, 2026</footer>
 
     <script type="module" src="./app.js"></script>
   </body>

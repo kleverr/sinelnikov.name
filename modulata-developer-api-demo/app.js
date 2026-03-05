@@ -1,21 +1,3 @@
-const API_BASE_URL = 'https://modulate-developer-apis.com';
-const API_KEY = '30b0ea76-da9d-424f-9fd7-423bc74a1184';
-
-const MODEL_CONFIG = {
-  'batch-fast': {
-    fullName: 'velma-2-stt-batch-english-vfast',
-    endpoint: '/api/velma-2-stt-batch-english-vfast',
-    ratePerHourUsd: 0.025,
-    unsupported: new Set(['utterances', 'speakers', 'languages']),
-  },
-  batch: {
-    fullName: 'velma-2-stt-batch',
-    endpoint: '/api/velma-2-stt-batch',
-    ratePerHourUsd: 0.03,
-    unsupported: new Set(),
-  },
-};
-
 const modelEl = document.getElementById('model');
 const fileEl = document.getElementById('file');
 const chooseBtnEl = document.getElementById('choose-btn');
@@ -23,13 +5,22 @@ const dropZoneEl = document.getElementById('drop-zone');
 const outputEl = document.getElementById('output');
 const previewOutputEl = document.getElementById('preview-output');
 const copyPreviewBtnEl = document.getElementById('copy-preview');
-const downloadBtnEl = document.getElementById('download-json');
+const copyJsonBtnEl = document.getElementById('copy-json');
 const tabButtons = Array.from(document.querySelectorAll('.tab-btn'));
 const tabPreviewEl = document.getElementById('tab-preview');
 const tabJsonEl = document.getElementById('tab-json');
+const featureNoteEl = document.getElementById('feature-note');
+const optSpeakerDiarizationEl = document.getElementById('opt-speaker-diarization');
+const optEmotionSignalEl = document.getElementById('opt-emotion-signal');
+const optAccentSignalEl = document.getElementById('opt-accent-signal');
+const optPiiPhiTaggingEl = document.getElementById('opt-pii-phi-tagging');
+const optionInputs = [optSpeakerDiarizationEl, optEmotionSignalEl, optAccentSignalEl, optPiiPhiTaggingEl];
 
 const metaStatusEl = document.getElementById('meta-status');
+const metaFailureTypeEl = document.getElementById('meta-failure-type');
+const metaFailureNameEl = document.getElementById('meta-failure-name');
 const metaModelEl = document.getElementById('meta-model');
+const metaOptionsEl = document.getElementById('meta-options');
 const metaFileNameEl = document.getElementById('meta-file-name');
 const metaFileTypeEl = document.getElementById('meta-file-type');
 const metaFileSizeEl = document.getElementById('meta-file-size');
@@ -47,7 +38,28 @@ const metaTranscriptWordsEl = document.getElementById('meta-transcript-words');
 const metaUtterancesEl = document.getElementById('meta-utterances');
 const metaSpeakersEl = document.getElementById('meta-speakers');
 const metaLanguagesEl = document.getElementById('meta-languages');
+const metaEmotionsEl = document.getElementById('meta-emotions');
+const metaAccentsEl = document.getElementById('meta-accents');
+const metaPiiTagsEl = document.getElementById('meta-pii-tags');
 const metaResponseBytesEl = document.getElementById('meta-response-bytes');
+
+const API_BASE_URL = 'https://modulate-developer-apis.com';
+const API_KEY = '30b0ea76-da9d-424f-9fd7-423bc74a1184';
+
+const MODEL_CONFIG = {
+  'batch-fast': {
+    fullName: 'velma-2-stt-batch-english-vfast',
+    endpoint: '/api/velma-2-stt-batch-english-vfast',
+    ratePerHourUsd: 0.025,
+    unsupported: new Set(['utterances', 'speakers', 'languages', 'emotions', 'accents', 'pii_tags', 'options']),
+  },
+  batch: {
+    fullName: 'velma-2-stt-batch',
+    endpoint: '/api/velma-2-stt-batch',
+    ratePerHourUsd: 0.03,
+    unsupported: new Set(),
+  },
+};
 
 let latestPayload = null;
 let latestPreviewText = '';
@@ -56,6 +68,7 @@ const INT_FMT = new Intl.NumberFormat('en-US');
 const DEC3_FMT = new Intl.NumberFormat('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 const DEC2_FMT = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const DEC1_FMT = new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const BATCH_ONLY_TOOLTIP = 'Available in Batch model.';
 
 function toText(value, fallback = '-') {
   if (value === null || value === undefined || value === '') return fallback;
@@ -77,6 +90,11 @@ function formatResponseBytes(bytes) {
   if (bytes < 1024) return `${INT_FMT.format(bytes)} B`;
   if (bytes < 1024 * 1024) return `${DEC2_FMT.format(bytes / 1024)} KB`;
   return `${DEC2_FMT.format(bytes / (1024 * 1024))} MB`;
+}
+
+function formatDurationMs(ms) {
+  if (typeof ms !== 'number' || !Number.isFinite(ms)) return '-';
+  return `${INT_FMT.format(Math.round(ms))} ms`;
 }
 
 function formatSecondsFromMs(ms) {
@@ -113,6 +131,7 @@ function formatProcessingFactor(data) {
     return 'N/A';
   }
 
+  // Use the same 1-decimal values shown in the table to keep factor visually consistent.
   const shownMinutes = Number((audioDurationMs / 60000).toFixed(1));
   const shownSeconds = Number((processingMs / 1000).toFixed(1));
   const durationSecondsForFactor = shownMinutes * 60;
@@ -132,7 +151,7 @@ function formatProcessingFactor(data) {
     return `x${formatAdaptive(fasterMultiplier)} faster`;
   }
 
-  const slowerMultiplier = processingSecondsForFactor / durationSecondsForFactor;
+  const slowerMultiplier = processingMs / audioDurationMs;
   return `x${formatAdaptive(slowerMultiplier)} slower`;
 }
 
@@ -213,7 +232,6 @@ function renderJson(payload) {
   outputEl.innerHTML = syntaxHighlightJson(pretty);
 
   latestPayload = payload;
-  downloadBtnEl.disabled = false;
   updatePreview(payload);
 }
 
@@ -221,12 +239,12 @@ function extractTranscriptText(payload) {
   const result = payload?.result;
 
   if (result && typeof result.text === 'string' && result.text.trim()) {
-    return result.text.trim();
+    return stripSignalTags(result.text).trim();
   }
 
   if (result && Array.isArray(result.utterances) && result.utterances.length) {
     const lines = result.utterances
-      .map((utterance) => (utterance && typeof utterance.text === 'string' ? utterance.text.trim() : ''))
+      .map((utterance) => (utterance && typeof utterance.text === 'string' ? stripSignalTags(utterance.text).trim() : ''))
       .filter(Boolean);
 
     if (lines.length) return lines.join('\n');
@@ -235,16 +253,299 @@ function extractTranscriptText(payload) {
   return '';
 }
 
+function getRequestedOptions() {
+  return {
+    speaker_diarization: !!optSpeakerDiarizationEl?.checked,
+    emotion_signal: !!optEmotionSignalEl?.checked,
+    accent_signal: !!optAccentSignalEl?.checked,
+    pii_phi_tagging: !!optPiiPhiTaggingEl?.checked,
+  };
+}
+
+function updateFeatureControlsForModel(modelKey) {
+  const supportsOptions = modelKey === 'batch';
+
+  for (const input of optionInputs) {
+    input.disabled = !supportsOptions;
+    const label = input.closest('.feature-item');
+    if (label) {
+      label.classList.toggle('disabled', !supportsOptions);
+      label.title = supportsOptions ? '' : BATCH_ONLY_TOOLTIP;
+    }
+  }
+
+  if (featureNoteEl) featureNoteEl.textContent = '';
+}
+
+function formatRequestedOptions(options, modelKey) {
+  if (modelKey !== 'batch') return 'N/A';
+
+  const opts = options || getRequestedOptions();
+  return [
+    `diarization: ${opts.speaker_diarization ? 'on' : 'off'}`,
+    `emotion: ${opts.emotion_signal ? 'on' : 'off'}`,
+    `accent: ${opts.accent_signal ? 'on' : 'off'}`,
+    `pii/phi: ${opts.pii_phi_tagging ? 'on' : 'off'}`,
+  ].join(' | ');
+}
+
+function toSpeakerLabel(value) {
+  const raw = value === undefined || value === null ? '' : String(value).trim();
+  if (!raw) return 'Speaker';
+
+  if (/^speaker\b/i.test(raw)) {
+    return raw.replace(/^speaker/i, 'Speaker');
+  }
+
+  if (/^\d+$/.test(raw)) {
+    return `Speaker ${raw}`;
+  }
+
+  return raw;
+}
+
+function formatTimestampMs(ms) {
+  if (typeof ms !== 'number' || !Number.isFinite(ms) || ms < 0) return '';
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+function collectSignalStats(result) {
+  const utterances = Array.isArray(result?.utterances) ? result.utterances : [];
+  const emotions = new Map();
+  const accents = new Map();
+  let piiTagCount = 0;
+
+  for (const utterance of utterances) {
+    if (!utterance || typeof utterance !== 'object') continue;
+
+    if (typeof utterance.emotion === 'string' && utterance.emotion.trim()) {
+      const key = utterance.emotion.trim();
+      emotions.set(key, (emotions.get(key) || 0) + 1);
+    }
+
+    if (typeof utterance.accent === 'string' && utterance.accent.trim()) {
+      const key = utterance.accent.trim();
+      accents.set(key, (accents.get(key) || 0) + 1);
+    }
+
+    if (typeof utterance.text === 'string') {
+      const piiMatches = utterance.text.match(/<\/?(?:pii|phi)\b[^>]*>/gi);
+      piiTagCount += piiMatches ? piiMatches.length : 0;
+    }
+  }
+
+  return { emotions, accents, piiTagCount };
+}
+
+function formatSignalMap(map) {
+  if (!(map instanceof Map) || !map.size) return 'N/A';
+
+  return Array.from(map.entries())
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([label, count]) => `${label} (${count})`)
+    .join(', ');
+}
+
+function firstNonEmptyString(...values) {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function getFailureInfo(data) {
+  if (data?.success) {
+    return { type: 'N/A', name: 'N/A' };
+  }
+
+  const error = data?.error || {};
+  const detail = error?.detail;
+  const statusCode = data?.api?.statusCode;
+  const statusText = typeof data?.api?.statusText === 'string' ? data.api.statusText.trim() : '';
+
+  let detailText = null;
+  if (typeof detail === 'string' && detail.trim()) {
+    detailText = detail.trim();
+  } else if (detail && typeof detail === 'object') {
+    detailText = firstNonEmptyString(detail.detail, detail.message, detail.error, detail.raw);
+    if (!detailText) {
+      try {
+        detailText = JSON.stringify(detail);
+      } catch {
+        detailText = null;
+      }
+    }
+  }
+
+  const statusSummary = statusCode
+    ? `HTTP ${statusCode}${statusText ? ` ${statusText}` : ''}`
+    : statusText
+      ? `HTTP ${statusText}`
+      : null;
+
+  return {
+    type: firstNonEmptyString(error.type, error.code, statusSummary, 'Request Failure') || 'Request Failure',
+    name: firstNonEmptyString(detailText, error.message, statusText, 'Unknown error') || 'Unknown error',
+  };
+}
+
+function stripSignalTags(text) {
+  if (typeof text !== 'string') return '';
+  return text.replace(/<(pii|phi):([a-zA-Z0-9_-]+)>([\s\S]*?)<\/\1:\2>/gi, '$3');
+}
+
+function renderTranscriptTextWithMaskedTags(container, text) {
+  container.textContent = '';
+  if (typeof text !== 'string' || !text) return;
+
+  const tagRegex = /<(pii|phi):([a-zA-Z0-9_-]+)>([\s\S]*?)<\/\1:\2>/gi;
+  let cursor = 0;
+  let matched = false;
+  let match;
+
+  while ((match = tagRegex.exec(text)) !== null) {
+    matched = true;
+
+    if (match.index > cursor) {
+      container.appendChild(document.createTextNode(text.slice(cursor, match.index)));
+    }
+
+    const value = typeof match[3] === 'string' ? match[3] : '';
+    const typeLabel = `${String(match[1]).toUpperCase()}:${String(match[2])}`;
+    const token = document.createElement('button');
+    token.type = 'button';
+    token.className = 'pii-token';
+    token.textContent = value;
+    token.title = `${typeLabel} (click to reveal)`;
+    token.addEventListener('click', () => {
+      token.classList.toggle('revealed');
+    });
+    container.appendChild(token);
+
+    cursor = tagRegex.lastIndex;
+  }
+
+  if (cursor < text.length) {
+    container.appendChild(document.createTextNode(text.slice(cursor)));
+  }
+
+  if (!matched) {
+    container.textContent = text;
+  }
+}
+
+function buildTranscriptCopyFromUtterances(utterances) {
+  const lines = [];
+
+  for (const utterance of utterances) {
+    if (!utterance || typeof utterance !== 'object') continue;
+
+    const text = stripSignalTags(typeof utterance.text === 'string' ? utterance.text : '').trim();
+    if (!text) continue;
+
+    const speakerRaw = utterance.speaker ?? utterance.speaker_id ?? utterance.speakerId;
+    const speaker = speakerRaw !== undefined && speakerRaw !== null ? toSpeakerLabel(speakerRaw) : '';
+    const ts = formatTimestampMs(utterance.start_ms);
+    const prefixParts = [ts, speaker].filter(Boolean);
+    const prefix = prefixParts.length ? `${prefixParts.join(' ')} ` : '';
+    lines.push(`${prefix}${text}`);
+  }
+
+  return lines.join('\n');
+}
+
+function renderUtterancePreview(utterances) {
+  previewOutputEl.textContent = '';
+  const list = document.createElement('div');
+  list.className = 'speaker-preview';
+
+  for (const utterance of utterances) {
+    if (!utterance || typeof utterance !== 'object') continue;
+
+    const rawText = typeof utterance.text === 'string' ? utterance.text : '';
+    const text = stripSignalTags(rawText).trim();
+    if (!text) continue;
+
+    const row = document.createElement('div');
+    row.className = 'speaker-turn';
+    const meta = document.createElement('div');
+    meta.className = 'utterance-meta';
+
+    const ts = formatTimestampMs(utterance.start_ms);
+    if (ts) {
+      const timeEl = document.createElement('span');
+      timeEl.className = 'utterance-time';
+      timeEl.textContent = ts;
+      meta.appendChild(timeEl);
+    }
+
+    const speakerRaw = utterance.speaker ?? utterance.speaker_id ?? utterance.speakerId;
+    if (speakerRaw !== undefined && speakerRaw !== null && String(speakerRaw).trim()) {
+      const chip = document.createElement('span');
+      chip.className = 'speaker-chip';
+      chip.textContent = toSpeakerLabel(speakerRaw);
+      meta.appendChild(chip);
+    }
+
+    if (typeof utterance.emotion === 'string' && utterance.emotion.trim()) {
+      const emotionEl = document.createElement('span');
+      emotionEl.className = 'signal-pill emotion';
+      emotionEl.textContent = utterance.emotion.trim();
+      meta.appendChild(emotionEl);
+    }
+
+    if (typeof utterance.accent === 'string' && utterance.accent.trim()) {
+      const accentEl = document.createElement('span');
+      accentEl.className = 'signal-pill accent';
+      accentEl.textContent = utterance.accent.trim();
+      meta.appendChild(accentEl);
+    }
+
+    if (typeof utterance.language === 'string' && utterance.language.trim()) {
+      const langEl = document.createElement('span');
+      langEl.className = 'signal-pill language';
+      langEl.textContent = utterance.language.trim();
+      meta.appendChild(langEl);
+    }
+
+    const bubble = document.createElement('p');
+    bubble.className = 'speaker-bubble';
+    renderTranscriptTextWithMaskedTags(bubble, rawText);
+
+    if (meta.childNodes.length) row.appendChild(meta);
+    row.appendChild(bubble);
+    list.appendChild(row);
+  }
+
+  previewOutputEl.appendChild(list);
+}
+
 function updatePreview(payload) {
+  if (payload?.status === 'processing') {
+    latestPreviewText = '';
+    previewOutputEl.innerHTML =
+      '<span class="preview-processing">Processing<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></span>';
+    return;
+  }
+
+  const utterances = Array.isArray(payload?.result?.utterances) ? payload.result.utterances : [];
+
+  if (utterances.length) {
+    latestPreviewText = buildTranscriptCopyFromUtterances(utterances);
+    renderUtterancePreview(utterances);
+    return;
+  }
+
   const transcriptText = extractTranscriptText(payload);
 
   latestPreviewText = transcriptText;
   if (transcriptText) {
     previewOutputEl.textContent = transcriptText;
-    copyPreviewBtnEl.disabled = false;
   } else {
     previewOutputEl.textContent = payload?.success ? 'No transcript returned.' : 'No transcript yet.';
-    copyPreviewBtnEl.disabled = true;
   }
 }
 
@@ -253,6 +554,8 @@ function setActiveTab(tabName) {
 
   tabPreviewEl.classList.toggle('active', isPreview);
   tabJsonEl.classList.toggle('active', !isPreview);
+  copyPreviewBtnEl.hidden = !isPreview;
+  copyJsonBtnEl.hidden = isPreview;
 
   for (const button of tabButtons) {
     const active = button.dataset.tab === tabName;
@@ -293,7 +596,6 @@ function findFirstNumericValueByKey(input, keys) {
 
     if (!current || typeof current !== 'object') continue;
     if (visited.has(current)) continue;
-
     visited.add(current);
 
     for (const [key, value] of Object.entries(current)) {
@@ -320,7 +622,6 @@ function findFirstStringValueByKey(input, keys) {
 
     if (!current || typeof current !== 'object') continue;
     if (visited.has(current)) continue;
-
     visited.add(current);
 
     for (const [key, value] of Object.entries(current)) {
@@ -341,35 +642,31 @@ function extractTokenUsage(resultData) {
   if (!resultData || typeof resultData !== 'object') return null;
 
   const inputTokens = findFirstNumericValueByKey(resultData, ['input_tokens', 'prompt_tokens', 'inputTokens', 'promptTokens']);
-  const outputTokens = findFirstNumericValueByKey(resultData, ['output_tokens', 'completion_tokens', 'outputTokens', 'completionTokens']);
-  const totalTokens = findFirstNumericValueByKey(resultData, ['total_tokens', 'token_count', 'tokens', 'totalTokens', 'tokenCount']);
+  const outputTokens = findFirstNumericValueByKey(resultData, [
+    'output_tokens',
+    'completion_tokens',
+    'outputTokens',
+    'completionTokens',
+  ]);
+  const totalTokens = findFirstNumericValueByKey(resultData, [
+    'total_tokens',
+    'token_count',
+    'tokens',
+    'totalTokens',
+    'tokenCount',
+  ]);
 
-  if (inputTokens === null && outputTokens === null && totalTokens === null) {
-    return null;
-  }
+  if (inputTokens === null && outputTokens === null && totalTokens === null) return null;
 
-  return {
-    inputTokens,
-    outputTokens,
-    totalTokens,
-  };
+  return { inputTokens, outputTokens, totalTokens };
 }
 
-function normalizeResponse({ modelKey, file, response, parsed, rawText, processingMs }) {
-  const cfg = MODEL_CONFIG[modelKey];
-
+function normalizeApiResponse({ modelKey, file, options, response, parsed, rawText, processingMs }) {
+  const cfg = MODEL_CONFIG[modelKey] || MODEL_CONFIG.batch;
   const durationMs =
     typeof parsed?.duration_ms === 'number'
       ? parsed.duration_ms
       : findFirstNumericValueByKey(parsed, ['duration_ms', 'audio_duration_ms', 'durationMs']);
-
-  const audioMinutes = typeof durationMs === 'number' ? durationMs / 60000 : null;
-  const ratePerHourUsd = cfg.ratePerHourUsd;
-  const estimatedUsd = typeof durationMs === 'number' ? (durationMs / 3600000) * ratePerHourUsd : null;
-
-  const transcriptText = typeof parsed?.text === 'string' ? parsed.text : null;
-  const transcriptChars = transcriptText ? transcriptText.length : null;
-  const transcriptWords = transcriptText ? transcriptText.trim().split(/\s+/).filter(Boolean).length : null;
 
   const utterances = Array.isArray(parsed?.utterances) ? parsed.utterances : [];
   const speakers = new Set();
@@ -377,24 +674,34 @@ function normalizeResponse({ modelKey, file, response, parsed, rawText, processi
 
   for (const utterance of utterances) {
     if (!utterance || typeof utterance !== 'object') continue;
-
     if (utterance.speaker !== undefined && utterance.speaker !== null) {
       speakers.add(String(utterance.speaker));
     }
-
     if (typeof utterance.language === 'string' && utterance.language.trim()) {
       languages.add(utterance.language.trim());
     }
   }
 
+  const transcriptText = typeof parsed?.text === 'string' ? parsed.text : null;
+  const transcriptChars = transcriptText ? transcriptText.length : null;
+  const transcriptWords = transcriptText ? transcriptText.trim().split(/\s+/).filter(Boolean).length : null;
+
   const requestId = findFirstStringValueByKey(parsed, ['request_id', 'requestId', 'transcription_id', 'transcriptionId']);
   const tokens = extractTokenUsage(parsed);
+
+  const ratePerHourUsd = cfg.ratePerHourUsd;
+  const estimatedUsd =
+    typeof durationMs === 'number' && durationMs > 0 ? Number(((durationMs / 3600000) * ratePerHourUsd).toFixed(6)) : null;
 
   const payload = {
     success: response.ok,
     failure: !response.ok,
     model: modelKey,
     modelFullName: cfg.fullName,
+    options: {
+      ...options,
+      appliedByModel: modelKey === 'batch',
+    },
     meta: {
       fileName: file.name,
       fileMimeType: file.type || null,
@@ -402,7 +709,7 @@ function normalizeResponse({ modelKey, file, response, parsed, rawText, processi
       fileSizeMb: file.size / (1024 * 1024),
       responseBytes: rawText.length,
       audioDurationMs: typeof durationMs === 'number' ? durationMs : null,
-      audioMinutes: typeof audioMinutes === 'number' ? audioMinutes : null,
+      audioMinutes: typeof durationMs === 'number' ? durationMs / 60000 : null,
       requestId,
       transcriptChars,
       transcriptWords,
@@ -420,7 +727,7 @@ function normalizeResponse({ modelKey, file, response, parsed, rawText, processi
       currency: 'USD',
       ratePerHourUsd,
       ratePerMinuteUsd: ratePerHourUsd / 60,
-      estimatedUsd: typeof estimatedUsd === 'number' ? Number(estimatedUsd.toFixed(6)) : null,
+      estimatedUsd,
       estimatedFromAudioDuration: typeof durationMs === 'number',
       tokens,
     },
@@ -435,7 +742,8 @@ function normalizeResponse({ modelKey, file, response, parsed, rawText, processi
 
   if (!response.ok) {
     payload.error = {
-      message: typeof parsed?.detail === 'string' ? parsed.detail : 'Modulate API request failed.',
+      type: `HTTP ${response.status}`,
+      message: 'Modulate API request failed.',
       detail: parsed,
     };
   }
@@ -444,8 +752,13 @@ function normalizeResponse({ modelKey, file, response, parsed, rawText, processi
 }
 
 function resetMeta(file) {
+  const modelKey = modelEl.value;
+  const options = getRequestedOptions();
   setStatus('Processing', 'processing');
+  metaFailureTypeEl.textContent = 'N/A';
+  metaFailureNameEl.textContent = 'N/A';
   metaModelEl.textContent = toText(modelEl.selectedOptions[0]?.textContent, modelEl.value);
+  metaOptionsEl.textContent = formatRequestedOptions(options, modelKey);
   metaFileNameEl.textContent = file?.name || '-';
   metaFileTypeEl.textContent = deriveClientFileType(file);
   metaFileSizeEl.textContent = formatMb(file?.size);
@@ -461,26 +774,37 @@ function resetMeta(file) {
   metaTranscriptCharsEl.textContent = '-';
   metaTranscriptWordsEl.textContent = '-';
   metaUtterancesEl.textContent = '-';
-  metaSpeakersEl.textContent = '-';
+  metaSpeakersEl.textContent = modelKey === 'batch' && options.speaker_diarization ? '-' : 'N/A';
   metaLanguagesEl.textContent = '-';
+  metaEmotionsEl.textContent = modelKey === 'batch' && options.emotion_signal ? '-' : 'N/A';
+  metaAccentsEl.textContent = modelKey === 'batch' && options.accent_signal ? '-' : 'N/A';
+  metaPiiTagsEl.textContent = modelKey === 'batch' && options.pii_phi_tagging ? '-' : 'N/A';
   metaResponseBytesEl.textContent = '-';
 }
 
 function updateMetaFromResponse(data, fallbackModel) {
   const processingText = formatSecondsFromMs(data?.speed?.processingMs);
   const factor = formatProcessingFactor(data);
+  const modelKey = data?.model || fallbackModel;
+  const cfg = MODEL_CONFIG[modelKey] || MODEL_CONFIG.batch;
+  const isUnsupported = (field) => cfg.unsupported?.has(field);
+  const options = data?.options || getRequestedOptions();
+  const diarizationEnabled = !isUnsupported('speakers') && !!options.speaker_diarization;
+  const emotionEnabled = !isUnsupported('emotions') && !!options.emotion_signal;
+  const accentEnabled = !isUnsupported('accents') && !!options.accent_signal;
+  const piiEnabled = !isUnsupported('pii_tags') && !!options.pii_phi_tagging;
 
   if (data?.success) {
     setStatus(`SUCCESS (${processingText})`, 'ok');
   } else {
     setStatus(`FAILURE (${processingText})`, 'fail');
   }
-
-  const modelKey = data?.model || fallbackModel;
-  const cfg = MODEL_CONFIG[modelKey] || MODEL_CONFIG.batch;
-  const isUnsupported = (field) => cfg.unsupported?.has(field);
+  const failureInfo = getFailureInfo(data);
+  metaFailureTypeEl.textContent = failureInfo.type;
+  metaFailureNameEl.textContent = failureInfo.name;
 
   metaModelEl.textContent = toText(data?.modelFullName, toText(data?.model, fallbackModel));
+  metaOptionsEl.textContent = isUnsupported('options') ? 'N/A' : formatRequestedOptions(options, modelKey);
   metaFileNameEl.textContent = toText(data?.meta?.fileName, '-');
   metaFileTypeEl.textContent = toText(data?.meta?.fileMimeType, metaFileTypeEl.textContent || '-');
   metaFileSizeEl.textContent = typeof data?.meta?.fileSizeBytes === 'number' ? formatMb(data.meta.fileSizeBytes) : '-';
@@ -489,22 +813,33 @@ function updateMetaFromResponse(data, fallbackModel) {
   metaProcessingEl.textContent = processingText;
   metaRtfEl.textContent = factor;
 
-  metaHttpEl.textContent = `${toText(data?.api?.statusCode)} ${toText(data?.api?.statusText, '')}`.trim();
+  const httpParts = [];
+  if (data?.api?.statusCode !== null && data?.api?.statusCode !== undefined && data.api.statusCode !== '') {
+    httpParts.push(String(data.api.statusCode));
+  }
+  if (typeof data?.api?.statusText === 'string' && data.api.statusText.trim()) {
+    httpParts.push(data.api.statusText.trim());
+  }
+  metaHttpEl.textContent = httpParts.length ? httpParts.join(' ') : '-';
   metaEndpointEl.textContent = toText(data?.api?.endpoint);
-  metaRequestIdEl.textContent = toText(data?.meta?.requestId, 'N/A');
+  metaRequestIdEl.textContent = toText(data?.meta?.requestId);
 
   metaRateEl.textContent = formatRate(data?.cost);
   metaCostEl.textContent = formatCost(data?.cost);
   metaTokensEl.textContent = formatTokens(data?.cost?.tokens);
 
-  metaTranscriptCharsEl.textContent = formatCount(data?.meta?.transcriptChars, 'chars') === '-' ? 'N/A' : formatCount(data?.meta?.transcriptChars, 'chars');
-  metaTranscriptWordsEl.textContent = formatCount(data?.meta?.transcriptWords, 'words') === '-' ? 'N/A' : formatCount(data?.meta?.transcriptWords, 'words');
-
-  const utteranceText = formatCount(data?.meta?.utteranceCount, 'utterances');
-  const speakerText = formatCount(data?.meta?.speakerCount, 'speakers');
-
-  metaUtterancesEl.textContent = isUnsupported('utterances') ? 'N/A' : utteranceText === '-' ? 'N/A' : utteranceText;
-  metaSpeakersEl.textContent = isUnsupported('speakers') ? 'N/A' : speakerText === '-' ? 'N/A' : speakerText;
+  metaTranscriptCharsEl.textContent = formatCount(data?.meta?.transcriptChars, 'chars');
+  metaTranscriptWordsEl.textContent = formatCount(data?.meta?.transcriptWords, 'words');
+  metaUtterancesEl.textContent = isUnsupported('utterances')
+    ? 'N/A'
+    : formatCount(data?.meta?.utteranceCount, 'utterances') === '-'
+      ? 'N/A'
+      : formatCount(data?.meta?.utteranceCount, 'utterances');
+  metaSpeakersEl.textContent = !diarizationEnabled
+    ? 'N/A'
+    : formatCount(data?.meta?.speakerCount, 'speakers') === '-'
+      ? 'N/A'
+      : formatCount(data?.meta?.speakerCount, 'speakers');
 
   if (isUnsupported('languages')) {
     metaLanguagesEl.textContent = 'N/A';
@@ -516,28 +851,56 @@ function updateMetaFromResponse(data, fallbackModel) {
     metaLanguagesEl.textContent = 'N/A';
   }
 
+  const signalStats = collectSignalStats(data?.result);
+  metaEmotionsEl.textContent = emotionEnabled ? formatSignalMap(signalStats.emotions) : 'N/A';
+  metaAccentsEl.textContent = accentEnabled ? formatSignalMap(signalStats.accents) : 'N/A';
+  metaPiiTagsEl.textContent = !piiEnabled
+    ? 'N/A'
+    : typeof signalStats.piiTagCount === 'number'
+      ? `${INT_FMT.format(signalStats.piiTagCount)} tags`
+      : 'N/A';
+
   metaResponseBytesEl.textContent = formatResponseBytes(data?.meta?.responseBytes);
+
+  if (metaRequestIdEl.textContent === '-' || !metaRequestIdEl.textContent) {
+    metaRequestIdEl.textContent = 'N/A';
+  }
+  if (metaTokensEl.textContent === '-') {
+    metaTokensEl.textContent = 'N/A';
+  }
+  if (metaTranscriptCharsEl.textContent === '-') {
+    metaTranscriptCharsEl.textContent = 'N/A';
+  }
+  if (metaTranscriptWordsEl.textContent === '-') {
+    metaTranscriptWordsEl.textContent = 'N/A';
+  }
 }
 
 async function runWithFile(file) {
   if (!file) return;
 
   const model = modelEl.value;
-  const cfg = MODEL_CONFIG[model];
+  const options = getRequestedOptions();
+  const cfg = MODEL_CONFIG[model] || MODEL_CONFIG.batch;
+  const startedAt = Date.now();
   const formData = new FormData();
   formData.append('upload_file', file, file.name);
+  if (model === 'batch') {
+    formData.append('speaker_diarization', String(options.speaker_diarization));
+    formData.append('emotion_signal', String(options.emotion_signal));
+    formData.append('accent_signal', String(options.accent_signal));
+    formData.append('pii_phi_tagging', String(options.pii_phi_tagging));
+  }
 
   resetMeta(file);
 
   const pendingPayload = {
     status: 'processing',
-    model,
-    endpoint: cfg.endpoint,
     file: { name: file.name, size: file.size, type: file.type },
+    model,
+    options,
   };
   renderJson(pendingPayload);
-
-  const startedAt = performance.now();
 
   try {
     const response = await fetch(`${API_BASE_URL}${cfg.endpoint}`, {
@@ -557,20 +920,21 @@ async function runWithFile(file) {
       parsed = { raw };
     }
 
-    const processingMs = performance.now() - startedAt;
-    const payload = normalizeResponse({ modelKey: model, file, response, parsed, rawText: raw, processingMs });
-
+    const processingMs = Date.now() - startedAt;
+    const payload = normalizeApiResponse({ modelKey: model, file, options, response, parsed, rawText: raw, processingMs });
     renderJson(payload);
     updateMetaFromResponse(payload, model);
   } catch (error) {
-    const processingMs = performance.now() - startedAt;
-    const message = error instanceof Error ? error.message : String(error);
-
+    const processingMs = Date.now() - startedAt;
     const payload = {
       success: false,
       failure: true,
       model,
       modelFullName: cfg.fullName,
+      options: {
+        ...options,
+        appliedByModel: model === 'batch',
+      },
       meta: {
         fileName: file.name,
         fileMimeType: file.type || null,
@@ -589,8 +953,6 @@ async function runWithFile(file) {
       },
       speed: {
         processingMs,
-        audioDurationMs: null,
-        realtimeFactor: null,
       },
       cost: {
         currency: 'USD',
@@ -607,7 +969,8 @@ async function runWithFile(file) {
         statusText: 'Network Error',
       },
       error: {
-        message,
+        type: 'Network Error',
+        message: error instanceof Error ? error.message : String(error),
         detail: 'Request may be blocked by network/CORS or invalid API key.',
       },
     };
@@ -622,6 +985,12 @@ async function runWithFile(file) {
 chooseBtnEl.addEventListener('click', (event) => {
   event.stopPropagation();
   fileEl.click();
+});
+
+modelEl.addEventListener('change', () => {
+  updateFeatureControlsForModel(modelEl.value);
+  metaModelEl.textContent = toText(modelEl.selectedOptions[0]?.textContent, modelEl.value);
+  metaOptionsEl.textContent = formatRequestedOptions(getRequestedOptions(), modelEl.value);
 });
 
 for (const button of tabButtons) {
@@ -656,44 +1025,40 @@ dropZoneEl.addEventListener('drop', (event) => {
   void runWithFile(file);
 });
 
-downloadBtnEl.addEventListener('click', () => {
-  if (!latestPayload) return;
-
-  const now = new Date();
-  const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
-  const model = toText(latestPayload?.model, 'unknown-model');
-  const filename = `modulate-${model}-${stamp}.json`;
-
-  const blob = new Blob([JSON.stringify(latestPayload, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-
-  URL.revokeObjectURL(url);
+copyJsonBtnEl.addEventListener('click', async () => {
+  try {
+    const jsonText = JSON.stringify(latestPayload ?? {}, null, 2);
+    await copyTextToClipboard(jsonText);
+    const previousText = copyJsonBtnEl.textContent;
+    copyJsonBtnEl.textContent = 'Copied';
+    setTimeout(() => {
+      copyJsonBtnEl.textContent = previousText || 'Copy json';
+    }, 1200);
+  } catch {
+    copyJsonBtnEl.textContent = 'Copy failed';
+    setTimeout(() => {
+      copyJsonBtnEl.textContent = 'Copy json';
+    }, 1200);
+  }
 });
 
 copyPreviewBtnEl.addEventListener('click', async () => {
-  if (!latestPreviewText) return;
-
   try {
     await copyTextToClipboard(latestPreviewText);
     const previousText = copyPreviewBtnEl.textContent;
     copyPreviewBtnEl.textContent = 'Copied';
     setTimeout(() => {
-      copyPreviewBtnEl.textContent = previousText || 'Copy text';
+      copyPreviewBtnEl.textContent = previousText || 'Copy transcript';
     }, 1200);
   } catch {
     copyPreviewBtnEl.textContent = 'Copy failed';
     setTimeout(() => {
-      copyPreviewBtnEl.textContent = 'Copy text';
+      copyPreviewBtnEl.textContent = 'Copy transcript';
     }, 1200);
   }
 });
 
 setActiveTab('preview');
+updateFeatureControlsForModel(modelEl.value);
+metaOptionsEl.textContent = formatRequestedOptions(getRequestedOptions(), modelEl.value);
 renderJson({});

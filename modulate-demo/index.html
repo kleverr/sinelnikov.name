@@ -194,8 +194,34 @@
         cursor: pointer;
       }
 
+      .record-zone .record-btn {
+        border: 1px solid #7db1ff;
+        border-radius: 7px;
+        color: #dcedff;
+        background: #13345d;
+        padding: 6px 12px;
+        font: inherit;
+        cursor: pointer;
+      }
+
+      .record-zone .record-btn.recording {
+        border-color: #ff7e7e;
+        background: #57222d;
+        color: #ffdada;
+      }
+
+      .record-status {
+        font-size: 0.8rem;
+        color: #c8bcde;
+        font-variant-numeric: tabular-nums;
+      }
+
       input[type='file'] {
         display: none;
+      }
+
+      .mini-upload[hidden] {
+        display: none !important;
       }
 
       .table-wrap {
@@ -577,6 +603,7 @@
               <select id="model">
                 <option value="batch-fast">velma-2-stt-batch-english-vfast</option>
                 <option value="batch">velma-2-stt-batch</option>
+                <option value="streaming">velma-2-stt-streaming</option>
               </select>
             </div>
 
@@ -606,6 +633,11 @@
             <span class="hint">Drop file here</span>
             <button id="choose-btn" class="btn" type="button">Choose File...</button>
             <input id="file" type="file" accept="audio/*,video/*,.aac,.aiff,.flac,.m4a,.mp3,.mp4,.mov,.ogg,.opus,.wav,.webm" />
+          </div>
+
+          <div id="record-zone" class="mini-upload record-zone" hidden>
+            <span id="record-status" class="record-status">Ready to record</span>
+            <button id="record-toggle-btn" class="record-btn" type="button">Start recording</button>
           </div>
         </div>
 

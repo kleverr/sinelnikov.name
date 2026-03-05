@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Developer API Demo tool</title>
+    <style>
+      :root {
+        --bg: #120021;
+        --panel: #1a062b;
+        --panel-border: #2d1544;
+        --text: #efe9ff;
+        --muted: #b9accf;
+        --ok: #40d48e;
+        --fail: #ff6b6b;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: 'DM Sans', 'Segoe UI', sans-serif;
+        color: var(--text);
+        background: radial-gradient(circle at 10% -20%, #2a0b48 0, transparent 45%), var(--bg);
+        padding: 18px;
+      }
+
+      .layout {
+        max-width: 1450px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        border-radius: 14px;
+        padding: 16px;
+        box-shadow: 0 16px 34px rgba(0, 0, 0, 0.25);
+      }
+
+      h1,
+      h2 {
+        margin: 0;
+        font-size: 1.7rem;
+        line-height: 1.2;
+      }
+
+      h2 {
+        font-size: 1.35rem;
+      }
+
+      .action-combo {
+        margin-top: 14px;
+        border: 1px solid #3a2556;
+        border-radius: 12px;
+        background: #1f1034;
+        padding: 10px;
+        display: grid;
+        grid-template-columns: 1.2fr 1fr;
+        gap: 10px;
+        align-items: stretch;
+      }
+
+      .model-block {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        border-radius: 10px;
+        background: #17082b;
+        padding: 10px;
+      }
+
+      .label {
+        color: var(--muted);
+        white-space: nowrap;
+        font-size: 0.93rem;
+      }
+
+      select {
+        width: 100%;
+        border: 1px solid #463060;
+        border-radius: 8px;
+        background: #0f0220;
+        color: var(--text);
+        font: inherit;
+        padding: 8px 10px;
+      }
+
+      .mini-upload {
+        border: 1px dashed #4e3b6e;
+        border-radius: 10px;
+        background: #211038;
+        min-height: 70px;
+        display: grid;
+        align-content: center;
+        justify-items: center;
+        gap: 6px;
+        cursor: pointer;
+        padding: 8px;
+      }
+
+      .mini-upload:hover,
+      .mini-upload.drag {
+        border-color: #699dff;
+        box-shadow: inset 0 0 0 1px rgba(89, 163, 255, 0.35);
+      }
+
+      .mini-upload .hint {
+        font-size: 0.8rem;
+        color: #c8bcde;
+      }
+
+      .mini-upload .btn {
+        border: 1px solid rgba(255, 255, 255, 0.45);
+        color: #fff;
+        background: transparent;
+        border-radius: 7px;
+        padding: 5px 11px;
+        font: inherit;
+        font-size: 0.9rem;
+        cursor: pointer;
+      }
+
+      input[type='file'] {
+        display: none;
+      }
+
+      .table-wrap {
+        margin-top: 14px;
+        border: 1px solid #3a2556;
+        border-radius: 10px;
+        overflow: hidden;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid #321e4c;
+        padding: 8px 10px;
+        text-align: left;
+        vertical-align: top;
+        font-size: 0.92rem;
+      }
+
+      th {
+        width: 220px;
+        color: #cdbfe3;
+        background: #1f1034;
+        font-weight: 600;
+      }
+
+      tr:last-child th,
+      tr:last-child td {
+        border-bottom: none;
+      }
+
+      .status {
+        font-weight: 700;
+      }
+
+      .status.ok {
+        color: var(--ok);
+      }
+
+      .status.fail {
+        color: var(--fail);
+      }
+
+      .status.processing {
+        color: #d8c6ff;
+      }
+
+      .status .dots {
+        display: inline-flex;
+        margin-left: 2px;
+        width: 24px;
+        justify-content: space-between;
+      }
+
+      .status .dot {
+        opacity: 0.25;
+        animation: pulseDot 1.2s infinite ease-in-out;
+      }
+
+      .status .dot:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+
+      .status .dot:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+
+      @keyframes pulseDot {
+        0%,
+        80%,
+        100% {
+          opacity: 0.25;
+          transform: translateY(0);
+        }
+        40% {
+          opacity: 1;
+          transform: translateY(-1px);
+        }
+      }
+
+      .json-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .download-btn {
+        border: 1px solid #5fa6ff;
+        color: #dcedff;
+        background: #132f56;
+        border-radius: 8px;
+        padding: 6px 10px;
+        font: inherit;
+        cursor: pointer;
+      }
+
+      .download-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      pre {
+        margin: 12px 0 0;
+        border: 1px solid #35204f;
+        border-radius: 10px;
+        background: #140327;
+        color: #fff;
+        padding: 14px;
+        min-height: 720px;
+        max-height: 78vh;
+        overflow: auto;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        font-size: 0.86rem;
+        line-height: 1.48;
+      }
+
+      .json-key {
+        color: #7cc0ff;
+      }
+
+      .json-string {
+        color: #58f59a;
+      }
+
+      .json-number {
+        color: #ffb347;
+      }
+
+      .json-boolean {
+        color: #ff7ac8;
+      }
+
+      .json-null {
+        color: #9a7fbf;
+      }
+
+      @media (max-width: 1200px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+
+        pre {
+          min-height: 320px;
+        }
+      }
+
+      @media (max-width: 760px) {
+        .action-combo {
+          grid-template-columns: 1fr;
+        }
+
+        th {
+          width: 45%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="layout">
+      <section class="panel">
+        <h1>Developer API Demo tool</h1>
+
+        <div class="action-combo">
+          <div class="model-block">
+            <span class="label">Model</span>
+            <select id="model">
+              <option value="batch-fast">velma-2-stt-batch-english-vfast</option>
+              <option value="batch">velma-2-stt-batch</option>
+            </select>
+          </div>
+
+          <div id="drop-zone" class="mini-upload">
+            <span class="hint">Drop file here</span>
+            <button id="choose-btn" class="btn" type="button">Choose File...</button>
+            <input id="file" type="file" accept="audio/*,video/*,.aac,.aiff,.flac,.m4a,.mp3,.mp4,.mov,.ogg,.opus,.wav,.webm" />
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <tr><th>Status</th><td><span id="meta-status" class="status">Waiting</span></td></tr>
+            <tr><th>Model</th><td id="meta-model">-</td></tr>
+            <tr><th>File Name</th><td id="meta-file-name">-</td></tr>
+            <tr><th>File Type</th><td id="meta-file-type">-</td></tr>
+            <tr><th>File Size</th><td id="meta-file-size">-</td></tr>
+            <tr><th>Audio Duration</th><td id="meta-duration-min">-</td></tr>
+            <tr><th>Processing</th><td id="meta-processing">-</td></tr>
+            <tr><th>Processing Factor</th><td id="meta-rtf">-</td></tr>
+            <tr><th>HTTP</th><td id="meta-http">-</td></tr>
+            <tr><th>Endpoint</th><td id="meta-endpoint">-</td></tr>
+            <tr><th>Request ID</th><td id="meta-request-id">-</td></tr>
+            <tr><th>Rate</th><td id="meta-rate">-</td></tr>
+            <tr><th>Cost</th><td id="meta-cost">-</td></tr>
+            <tr><th>Tokens</th><td id="meta-tokens">-</td></tr>
+            <tr><th>Transcript Chars</th><td id="meta-transcript-chars">-</td></tr>
+            <tr><th>Transcript Words</th><td id="meta-transcript-words">-</td></tr>
+            <tr><th>Utterances</th><td id="meta-utterances">-</td></tr>
+            <tr><th>Speakers</th><td id="meta-speakers">-</td></tr>
+            <tr><th>Languages</th><td id="meta-languages">-</td></tr>
+            <tr><th>Response Size</th><td id="meta-response-bytes">-</td></tr>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="json-head">
+          <h2>JSON</h2>
+          <button id="download-json" class="download-btn" type="button" disabled>Download JSON</button>
+        </div>
+        <pre id="output">{}</pre>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

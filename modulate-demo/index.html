@@ -923,6 +923,14 @@
         color: var(--muted);
       }
 
+      .panel-new-upload .panel-upload-formats {
+        font-size: 0.8rem;
+        color: var(--muted);
+        opacity: 0.7;
+        text-align: center;
+        line-height: 1.5;
+      }
+
       .panel-new-upload .panel-upload-btn {
         border: 1px solid rgba(255, 255, 255, 0.45);
         color: rgba(255, 255, 255, 0.85);
@@ -1156,6 +1164,7 @@
       <section class="panel panel-right">
         <div id="panel-new-upload" class="panel-new-upload">
           <span class="panel-upload-hint">Drop audio or video files here</span>
+          <span id="panel-upload-formats" class="panel-upload-formats"></span>
           <button id="panel-choose-btn" class="panel-upload-btn" type="button">Choose Files…</button>
         </div>
         <div id="viewer-shell" class="viewer-shell" hidden>

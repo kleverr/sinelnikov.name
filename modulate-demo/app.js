@@ -51,6 +51,7 @@ const audioPlayerEl = document.getElementById('audio-player');
 const autoscrollEl = document.getElementById('autoscroll');
 const panelNewUploadEl = document.getElementById('panel-new-upload');
 const panelChooseBtnEl = document.getElementById('panel-choose-btn');
+const panelUploadFormatsEl = document.getElementById('panel-upload-formats');
 const viewerShellEl = document.getElementById('viewer-shell');
 
 const API_BASE_URL = 'https://modulate-developer-apis.com';
@@ -1554,11 +1555,21 @@ function stopRecording(cancel = false) {
   mediaRecorder.stop();
 }
 
+const UPLOAD_FORMATS = {
+  'batch-fast': 'Opus only · up to 100 MB',
+  'batch': 'AAC · AIFF · FLAC · MP3 · MP4 · MOV · OGG · Opus · WAV · WebM · up to 100 MB',
+  'streaming': 'AAC · AIFF · FLAC · MP3 · MP4 · MOV · OGG · Opus · WAV · WebM',
+};
+
 function updateInputWidgetForModel(modelKey) {
   const streaming = isStreamingModel(modelKey);
 
   recordZoneEl.hidden = !streaming;
   recordZoneEl.style.display = streaming ? 'grid' : 'none';
+
+  if (panelUploadFormatsEl) {
+    panelUploadFormatsEl.textContent = UPLOAD_FORMATS[modelKey] ?? UPLOAD_FORMATS.batch;
+  }
 
   if (!streaming) {
     stopRecording(true);

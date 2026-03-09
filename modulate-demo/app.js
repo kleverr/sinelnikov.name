@@ -1,7 +1,5 @@
 const modelEl = document.getElementById('model');
 const fileEl = document.getElementById('file');
-const chooseBtnEl = document.getElementById('choose-btn');
-const dropZoneEl = document.getElementById('drop-zone');
 const recordZoneEl = document.getElementById('record-zone');
 const recordToggleBtnEl = document.getElementById('record-toggle-btn');
 const recordStatusEl = document.getElementById('record-status');
@@ -9,6 +7,7 @@ const outputEl = document.getElementById('output');
 const previewOutputEl = document.getElementById('preview-output');
 const copyPreviewBtnEl = document.getElementById('copy-preview');
 const copyJsonBtnEl = document.getElementById('copy-json');
+const toggleViewBtnEl = document.getElementById('toggle-view');
 const tabButtons = Array.from(document.querySelectorAll('.tab-btn'));
 const tabPreviewEl = document.getElementById('tab-preview');
 const tabJsonEl = document.getElementById('tab-json');
@@ -50,6 +49,9 @@ const metaResponseBytesEl = document.getElementById('meta-response-bytes');
 const audioPlayerWrapEl = document.getElementById('audio-player-wrap');
 const audioPlayerEl = document.getElementById('audio-player');
 const autoscrollEl = document.getElementById('autoscroll');
+const panelNewUploadEl = document.getElementById('panel-new-upload');
+const panelChooseBtnEl = document.getElementById('panel-choose-btn');
+const viewerShellEl = document.getElementById('viewer-shell');
 
 const API_BASE_URL = 'https://modulate-developer-apis.com';
 const API_WS_BASE_URL = API_BASE_URL.replace(/^https:\/\//i, 'wss://').replace(/^http:\/\//i, 'ws://');
@@ -112,6 +114,328 @@ let recordedChunks = [];
 let recordingStartedAt = 0;
 let recordingTimerId = null;
 let shouldSubmitRecording = false;
+
+// ── Multi-file state ──────────────────────────────────────────────────────────
+const fileTabsBarEl = document.getElementById('file-tabs-bar');
+let files = [];       // FileEntry[]
+let activeFileIndex = -1;
+
+function createFileEntry(file) {
+  return {
+    file,
+    status: 'pending',    // 'pending' | 'processing' | 'done' | 'error'
+    estimatedMs: null,
+    audioUrl: null,
+    normalizedResponse: null,
+    rawPayload: null,
+    previewText: '',
+    model: modelEl.value,
+    options: getRequestedOptions(),
+  };
+}
+
+function computePreviewText(payload) {
+  const utterances = Array.isArray(payload?.result?.utterances) ? payload.result.utterances : [];
+  if (utterances.length) return buildTranscriptCopyFromUtterances(utterances);
+  return extractTranscriptText(payload) || '';
+}
+
+function renderFileTabs() {
+  fileTabsBarEl.innerHTML = '';
+  files.forEach((entry, i) => {
+    const tab = document.createElement('button');
+    tab.type = 'button';
+    tab.className = 'file-tab' + (i === activeFileIndex ? ' active' : '');
+    tab.dataset.status = entry.status;
+    tab.addEventListener('click', () => setActiveFileIndex(i));
+
+    const dot = document.createElement('span');
+    dot.className = 'file-tab-dot';
+
+    const name = document.createElement('span');
+    name.className = 'file-tab-name';
+    const fn = entry.file.name;
+    name.textContent = fn.length > 16 ? fn.slice(0, 15) + '…' : fn;
+    name.title = fn;
+
+    const close = document.createElement('span');
+    close.className = 'file-tab-close';
+    close.textContent = '×';
+    close.title = 'Remove';
+    close.addEventListener('click', (e) => { e.stopPropagation(); removeFile(i); });
+
+    const progress = document.createElement('div');
+    progress.className = 'file-tab-progress';
+    if (entry.status === 'processing' && entry.estimatedMs) {
+      const dur = (entry.estimatedMs / 1000).toFixed(1);
+      progress.style.animation = `progress-fill ${dur}s cubic-bezier(0.25,0.46,0.45,0.94) forwards`;
+    }
+    // done/error: no fill — tab returns to normal background
+
+    tab.append(progress, dot, name, close);
+    fileTabsBarEl.appendChild(tab);
+  });
+  if (files.length < 5) {
+    const newTab = document.createElement('button');
+    newTab.type = 'button';
+    newTab.className = 'file-tab new-tab' + (activeFileIndex === -1 ? ' active' : '');
+    newTab.dataset.newTab = 'true';
+    newTab.addEventListener('click', () => setActiveFileIndex(-1));
+    const newTabName = document.createElement('span');
+    newTabName.textContent = 'New transcription';
+    newTab.appendChild(newTabName);
+    fileTabsBarEl.appendChild(newTab);
+  }
+}
+
+function updateTabStatus(i) {
+  const tab = fileTabsBarEl.querySelectorAll('.file-tab')[i];
+  if (!tab) return;
+  const entry = files[i];
+  if (!entry) return;
+  tab.dataset.status = entry.status;
+  const progress = tab.querySelector('.file-tab-progress');
+  if (!progress) return;
+  if (entry.status === 'processing' && entry.estimatedMs) {
+    const dur = (entry.estimatedMs / 1000).toFixed(1);
+    progress.style.animation = `progress-fill ${dur}s cubic-bezier(0.25,0.46,0.45,0.94) forwards`;
+  } else if (entry.status !== 'processing') {
+    progress.style.animation = 'none';
+    progress.style.width = '0';
+  }
+}
+
+function setActiveFileIndex(i) {
+  activeFileIndex = i;
+  // Update active class in-place so processing animations are not interrupted
+  let fileIdx = 0;
+  for (const t of fileTabsBarEl.querySelectorAll('.file-tab')) {
+    if (t.dataset.newTab) {
+      t.classList.toggle('active', i === -1);
+    } else {
+      t.classList.toggle('active', fileIdx === i);
+      fileIdx++;
+    }
+  }
+  if (i === -1) {
+    panelNewUploadEl.hidden = false;
+    viewerShellEl.hidden = true;
+  } else {
+    panelNewUploadEl.hidden = true;
+    viewerShellEl.hidden = false;
+    displayFile(files[i]);
+  }
+}
+
+function removeFile(i) {
+  files.splice(i, 1);
+  if (files.length === 0) {
+    activeFileIndex = -1;
+    latestPayload = null;
+    latestPreviewText = '';
+    audioPlayerWrapEl.hidden = true;
+    renderFileTabs();
+    panelNewUploadEl.hidden = false;
+    viewerShellEl.hidden = true;
+  } else {
+    if (activeFileIndex >= files.length) activeFileIndex = files.length - 1;
+    else if (activeFileIndex > i) activeFileIndex--;
+    renderFileTabs();
+    if (activeFileIndex === -1) {
+      panelNewUploadEl.hidden = false;
+      viewerShellEl.hidden = true;
+    } else {
+      panelNewUploadEl.hidden = true;
+      viewerShellEl.hidden = false;
+      displayFile(files[activeFileIndex]);
+    }
+  }
+}
+
+function displayFile(entry) {
+  if (!entry) return;
+
+  if (entry.status === 'pending') {
+    metaStatusEl.textContent = 'Waiting';
+    metaStatusEl.className = 'status';
+    rowFailureTypeEl.hidden = true;
+    rowFailureNameEl.hidden = true;
+    metaFileNameEl.textContent = entry.file.name;
+    metaFileSizeEl.textContent = formatMb(entry.file.size);
+    metaFileTypeEl.textContent = deriveClientFileType(entry.file);
+    metaModelEl.textContent = '—';
+    metaOptionsEl.textContent = '—';
+    metaDurationMinEl.textContent = '—';
+    metaProcessingEl.textContent = '—';
+    metaRtfEl.textContent = '—';
+    metaHttpEl.textContent = '—';
+    metaEndpointEl.textContent = '—';
+    metaRequestIdEl.textContent = '—';
+    metaRateEl.textContent = '—';
+    metaCostEl.textContent = '—';
+    metaTokensEl.textContent = '—';
+    metaTranscriptCharsEl.textContent = '—';
+    metaTranscriptWordsEl.textContent = '—';
+    metaUtterancesEl.textContent = '—';
+    metaSpeakersEl.textContent = '—';
+    metaLanguagesEl.textContent = '—';
+    metaEmotionsEl.textContent = '—';
+    metaAccentsEl.textContent = '—';
+    metaPiiTagsEl.textContent = '—';
+    metaResponseBytesEl.textContent = '—';
+    previewOutputEl.innerHTML = '<span class="empty-hint">Queued — will start processing shortly…</span>';
+    audioPlayerWrapEl.hidden = true;
+    latestPayload = null;
+    latestPreviewText = '';
+    renderJson({});
+    return;
+  }
+
+  if (entry.status === 'processing') {
+    resetMeta(entry.file);
+    progressEstimatedMs = entry.estimatedMs;
+    updatePreview({ status: 'processing' });
+    if (entry.audioUrl) {
+      if (audioObjectUrl && audioObjectUrl !== entry.audioUrl) URL.revokeObjectURL(audioObjectUrl);
+      audioObjectUrl = entry.audioUrl;
+      audioPlayerEl.src = entry.audioUrl;
+      audioPlayerWrapEl.hidden = false;
+    } else {
+      audioPlayerWrapEl.hidden = true;
+    }
+    latestPayload = null;
+    latestPreviewText = '';
+    renderJson({ status: 'processing', file: { name: entry.file.name }, model: entry.model });
+    return;
+  }
+
+  // done or error
+  const p = entry.normalizedResponse;
+  latestPayload = entry.rawPayload;
+  latestPreviewText = entry.previewText;
+  renderJson(entry.rawPayload);
+  updateMetaFromResponse(p, entry.model);
+  progressEstimatedMs = null;
+  updatePreview(p);
+  if (entry.audioUrl) {
+    if (audioObjectUrl && audioObjectUrl !== entry.audioUrl) URL.revokeObjectURL(audioObjectUrl);
+    audioObjectUrl = entry.audioUrl;
+    audioPlayerEl.src = entry.audioUrl;
+    audioPlayerWrapEl.hidden = false;
+  } else {
+    audioPlayerWrapEl.hidden = true;
+  }
+}
+
+function addFiles(fileList) {
+  const toAdd = Array.from(fileList);
+  if (!toAdd.length) return;
+
+  if (files.length >= 5) {
+    const replaceIdx = activeFileIndex >= 0 ? activeFileIndex : 0;
+    const currentName = files[replaceIdx]?.file.name ?? 'the current tab';
+    const shortName = currentName.length > 40 ? currentName.slice(0, 39) + '…' : currentName;
+    const ok = window.confirm(`All 5 slots are in use.\n\nReplace "${shortName}" with the new file?`);
+    if (!ok) return;
+    files[replaceIdx] = createFileEntry(toAdd[0]);
+    renderFileTabs();
+    setActiveFileIndex(replaceIdx);
+    processAllFiles();
+    return;
+  }
+
+  const remaining = 5 - files.length;
+  const toAddSliced = toAdd.slice(0, remaining);
+  const firstNewIndex = files.length;
+  toAddSliced.forEach(f => files.push(createFileEntry(f)));
+  renderFileTabs();
+  if (activeFileIndex < 0) setActiveFileIndex(firstNewIndex);
+  processAllFiles();
+}
+
+function processAllFiles() {
+  files.forEach((entry, i) => {
+    if (entry.status === 'pending') void runWithFileAtIndex(i);
+  });
+}
+
+async function runWithFileAtIndex(i) {
+  const entry = files[i];
+  if (!entry || entry.status !== 'pending') return;
+
+  const { file } = entry;
+  const model = entry.model;
+  const config = MODEL_CONFIG[model] || MODEL_CONFIG.batch;
+  const options = entry.options;
+  const startedAt = Date.now();
+
+  // Probe duration for progress estimate
+  if (config.speedFactor) {
+    const dur = await probeFileDuration(file).catch(() => null);
+    if (dur) entry.estimatedMs = dur / config.speedFactor;
+  }
+
+  // Create audio URL upfront
+  if (!entry.audioUrl) entry.audioUrl = URL.createObjectURL(file);
+
+  entry.status = 'processing';
+  updateTabStatus(i);
+  if (i === activeFileIndex) {
+    resetMeta(file);
+    progressEstimatedMs = entry.estimatedMs;
+    updatePreview({ status: 'processing' });
+    audioObjectUrl = entry.audioUrl;
+    audioPlayerEl.src = entry.audioUrl;
+    audioPlayerWrapEl.hidden = false;
+    renderJson({ status: 'processing', file: { name: file.name }, model, options });
+  }
+
+  const finalize = (payload, status) => {
+    entry.status = status;
+    entry.normalizedResponse = payload;
+    entry.rawPayload = payload;
+    entry.previewText = computePreviewText(payload);
+    updateTabStatus(i);
+    if (i === activeFileIndex) {
+      latestPayload = payload;
+      latestPreviewText = entry.previewText;
+      renderJson(payload);
+      updateMetaFromResponse(payload, model);
+      progressEstimatedMs = null;
+      updatePreview(payload);
+    }
+  };
+
+  if (!API_KEY) {
+    const processingMs = Date.now() - startedAt;
+    const payload = normalizeApiResponse({ modelKey: model, file, options, config, statusCode: 401, statusText: 'Missing API Key', parsed: { message: 'Missing API key in app.js' }, rawText: '{"message":"Missing API key in app.js"}', processingMs, ok: false });
+    payload.error = { type: 'Configuration Error', message: 'Missing API key in app.js', detail: 'Set API_KEY before deploying.' };
+    finalize(payload, 'error');
+    fileEl.value = '';
+    return;
+  }
+
+  try {
+    const transport = config.mode === 'streaming'
+      ? await requestStreamingTranscription({ file, options, config })
+      : await requestBatchTranscription({ file, options, config });
+    const processingMs = Date.now() - startedAt;
+    const payload = normalizeApiResponse({ modelKey: model, file, options, config, statusCode: transport.statusCode, statusText: transport.statusText, parsed: transport.parsed, rawText: transport.rawText, processingMs, ok: transport.ok });
+    finalize(payload, payload.success ? 'done' : 'error');
+  } catch (error) {
+    const processingMs = Date.now() - startedAt;
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const payload = normalizeApiResponse({ modelKey: model, file, options, config, statusCode: null, statusText: config.mode === 'streaming' ? 'Streaming Error' : 'Network Error', parsed: { message: errorMessage }, rawText: JSON.stringify({ message: errorMessage }), processingMs, ok: false });
+    payload.error = { type: config.mode === 'streaming' ? 'Streaming Error' : 'Network Error', message: errorMessage, detail: config.mode === 'streaming' ? 'WebSocket streaming failed.' : 'Request failed.' };
+    finalize(payload, 'error');
+  } finally {
+    fileEl.value = '';
+    if (model === 'streaming' && mediaRecorder?.state !== 'recording') {
+      recordStatusEl.textContent = 'Ready to record';
+    }
+  }
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 function probeFileDuration(file) {
   return new Promise((resolve, reject) => {
@@ -355,12 +679,13 @@ function formatRequestedOptions(options, modelKey) {
   if (modelKey === 'batch-fast') return 'N/A';
 
   const opts = options || getRequestedOptions();
-  return [
-    `diarization: ${opts.speaker_diarization ? 'on' : 'off'}`,
-    `emotion: ${opts.emotion_signal ? 'on' : 'off'}`,
-    `accent: ${opts.accent_signal ? 'on' : 'off'}`,
-    `pii/phi: ${opts.pii_phi_tagging ? 'on' : 'off'}`,
-  ].join(' | ');
+  const on = [
+    opts.speaker_diarization && 'Diarization',
+    opts.emotion_signal && 'Emotion',
+    opts.accent_signal && 'Accent',
+    opts.pii_phi_tagging && 'PII/PHI',
+  ].filter(Boolean);
+  return on.length ? on.join(', ') : 'none';
 }
 
 function toSpeakerLabel(value) {
@@ -618,6 +943,8 @@ function renderUtterancePreview(utterances) {
 function updatePreview(payload) {
   if (payload?.status === 'processing') {
     latestPreviewText = '';
+    // Don't reset the animation if the processing indicator is already showing
+    if (previewOutputEl.querySelector('.processing-progress, .preview-processing')) return;
     if (progressEstimatedMs) {
       const totalS = progressEstimatedMs / 1000;
       const roundedS = Math.max(5, Math.round(totalS / 5) * 5);
@@ -661,6 +988,7 @@ function setActiveTab(tabName) {
   tabJsonEl.classList.toggle('active', !isPreview);
   copyPreviewBtnEl.hidden = !isPreview;
   copyJsonBtnEl.hidden = isPreview;
+  if (toggleViewBtnEl) toggleViewBtnEl.textContent = isPreview ? 'Show API Response' : 'Show Transcript';
 
   for (const button of tabButtons) {
     const active = button.dataset.tab === tabName;
@@ -670,16 +998,22 @@ function setActiveTab(tabName) {
 
 async function copyTextToClipboard(text) {
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    await navigator.clipboard.writeText(text);
-    return;
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch { /* fall through to execCommand */ }
   }
 
   const tempTextArea = document.createElement('textarea');
   tempTextArea.value = text;
+  tempTextArea.style.position = 'fixed';
+  tempTextArea.style.opacity = '0';
   document.body.appendChild(tempTextArea);
+  tempTextArea.focus();
   tempTextArea.select();
-  document.execCommand('copy');
+  const ok = document.execCommand('copy');
   tempTextArea.remove();
+  if (!ok) throw new Error('copy failed');
 }
 
 function showAudioPlayer(file) {
@@ -1191,7 +1525,9 @@ async function startRecording() {
         return;
       }
       recordStatusEl.textContent = 'Processing recording...';
-      void runWithFile(recordedFile);
+      // Reset files for recording (single-file streaming flow)
+      files = []; activeFileIndex = -1;
+      addFiles([recordedFile]);
     });
 
     mediaRecorder.start(200);
@@ -1221,9 +1557,7 @@ function stopRecording(cancel = false) {
 function updateInputWidgetForModel(modelKey) {
   const streaming = isStreamingModel(modelKey);
 
-  dropZoneEl.hidden = streaming;
   recordZoneEl.hidden = !streaming;
-  dropZoneEl.style.display = streaming ? 'none' : 'grid';
   recordZoneEl.style.display = streaming ? 'grid' : 'none';
 
   if (!streaming) {
@@ -1363,111 +1697,6 @@ function updateMetaFromResponse(data, fallbackModel) {
   }
 }
 
-async function runWithFile(file) {
-  if (!file) return;
-
-  const model = modelEl.value;
-  const config = MODEL_CONFIG[model] || MODEL_CONFIG.batch;
-  const options = getRequestedOptions();
-  const startedAt = Date.now();
-
-  progressEstimatedMs = null;
-  if (config.speedFactor) {
-    const dur = await probeFileDuration(file).catch(() => null);
-    if (dur) progressEstimatedMs = dur / config.speedFactor;
-  }
-
-  resetMeta(file);
-
-  const pendingPayload = {
-    status: 'processing',
-    file: { name: file.name, size: file.size, type: file.type },
-    model,
-    options,
-  };
-  renderJson(pendingPayload);
-
-  if (!API_KEY) {
-    const processingMs = Date.now() - startedAt;
-    const payload = normalizeApiResponse({
-      modelKey: model,
-      file,
-      options,
-      config,
-      statusCode: 401,
-      statusText: 'Missing API Key',
-      parsed: { message: 'Missing API key in app.js' },
-      rawText: '{"message":"Missing API key in app.js"}',
-      processingMs,
-      ok: false,
-    });
-    payload.error = {
-      type: 'Configuration Error',
-      message: 'Missing API key in app.js',
-      detail: 'Set API_KEY before deploying.',
-    };
-    renderJson(payload);
-    updateMetaFromResponse(payload, model);
-    return;
-  }
-
-  try {
-    const transport =
-      config.mode === 'streaming'
-        ? await requestStreamingTranscription({ file, options, config })
-        : await requestBatchTranscription({ file, options, config });
-    const processingMs = Date.now() - startedAt;
-
-    const payload = normalizeApiResponse({
-      modelKey: model,
-      file,
-      options,
-      config,
-      statusCode: transport.statusCode,
-      statusText: transport.statusText,
-      parsed: transport.parsed,
-      rawText: transport.rawText,
-      processingMs,
-      ok: transport.ok,
-    });
-
-    renderJson(payload);
-    updateMetaFromResponse(payload, model);
-  } catch (error) {
-    const processingMs = Date.now() - startedAt;
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const payload = normalizeApiResponse({
-      modelKey: model,
-      file,
-      options,
-      config,
-      statusCode: null,
-      statusText: config.mode === 'streaming' ? 'Streaming Error' : 'Network Error',
-      parsed: { message: errorMessage },
-      rawText: JSON.stringify({ message: errorMessage }),
-      processingMs,
-      ok: false,
-    });
-    payload.error = {
-      type: config.mode === 'streaming' ? 'Streaming Error' : 'Network Error',
-      message: errorMessage,
-      detail: config.mode === 'streaming' ? 'WebSocket streaming failed.' : 'Request failed.',
-    };
-
-    renderJson(payload);
-    updateMetaFromResponse(payload, model);
-  } finally {
-    fileEl.value = '';
-    if (model === 'streaming' && mediaRecorder?.state !== 'recording') {
-      recordStatusEl.textContent = 'Ready to record';
-    }
-  }
-}
-
-chooseBtnEl.addEventListener('click', (event) => {
-  event.stopPropagation();
-  fileEl.click();
-});
 
 modelEl.addEventListener('change', () => {
   updateInputWidgetForModel(modelEl.value);
@@ -1488,36 +1717,41 @@ for (const button of tabButtons) {
   });
 }
 
-dropZoneEl.addEventListener('click', () => {
+if (toggleViewBtnEl) {
+  toggleViewBtnEl.addEventListener('click', () => {
+    setActiveTab(tabJsonEl.classList.contains('active') ? 'preview' : 'json');
+  });
+}
+
+fileEl.addEventListener('change', () => {
+  if (!fileEl.files?.length) return;
+  addFiles(fileEl.files);
+});
+
+panelChooseBtnEl.addEventListener('click', (event) => {
+  event.stopPropagation();
   fileEl.click();
 });
 
-fileEl.addEventListener('change', () => {
-  const file = fileEl.files?.[0];
-  if (!file) return;
-  showAudioPlayer(file);
-  void showPreEstimate(file);
-  void runWithFile(file);
+panelNewUploadEl.addEventListener('click', () => {
+  fileEl.click();
 });
 
-dropZoneEl.addEventListener('dragover', (event) => {
+panelNewUploadEl.addEventListener('dragover', (event) => {
   event.preventDefault();
-  dropZoneEl.classList.add('drag');
+  panelNewUploadEl.classList.add('drag');
 });
 
-dropZoneEl.addEventListener('dragleave', () => {
-  dropZoneEl.classList.remove('drag');
+panelNewUploadEl.addEventListener('dragleave', () => {
+  panelNewUploadEl.classList.remove('drag');
 });
 
-dropZoneEl.addEventListener('drop', (event) => {
+panelNewUploadEl.addEventListener('drop', (event) => {
   event.preventDefault();
-  dropZoneEl.classList.remove('drag');
-
-  const file = event.dataTransfer?.files?.[0];
-  if (!file) return;
-  showAudioPlayer(file);
-  void showPreEstimate(file);
-  void runWithFile(file);
+  panelNewUploadEl.classList.remove('drag');
+  const droppedFiles = event.dataTransfer?.files;
+  if (!droppedFiles?.length) return;
+  addFiles(droppedFiles);
 });
 
 recordToggleBtnEl.addEventListener('click', () => {
@@ -1547,18 +1781,15 @@ copyJsonBtnEl.addEventListener('click', async () => {
 });
 
 copyPreviewBtnEl.addEventListener('click', async () => {
+  if (!latestPreviewText) return;
+  const saved = copyPreviewBtnEl.textContent;
   try {
     await copyTextToClipboard(latestPreviewText);
-    const previousText = copyPreviewBtnEl.textContent;
     copyPreviewBtnEl.textContent = 'Copied';
-    setTimeout(() => {
-      copyPreviewBtnEl.textContent = previousText || 'Copy transcript';
-    }, 1200);
+    setTimeout(() => { copyPreviewBtnEl.textContent = saved; }, 1200);
   } catch {
     copyPreviewBtnEl.textContent = 'Copy failed';
-    setTimeout(() => {
-      copyPreviewBtnEl.textContent = 'Copy transcript';
-    }, 1200);
+    setTimeout(() => { copyPreviewBtnEl.textContent = saved; }, 1200);
   }
 });
 
@@ -1582,13 +1813,6 @@ audioPlayerEl.addEventListener('timeupdate', () => {
 });
 
 
-function syncSpacerHeight() {
-  const h1 = document.querySelector('h1');
-  const spacer = document.querySelector('.panel-title-spacer');
-  if (h1 && spacer) spacer.style.height = h1.getBoundingClientRect().height + 'px';
-}
-syncSpacerHeight();
-window.addEventListener('resize', syncSpacerHeight);
 
 const themeToggleEl = document.getElementById('theme-toggle');
 function applyTheme(theme) {
@@ -1608,3 +1832,5 @@ updateFeatureControlsForModel(modelEl.value);
 metaModelEl.textContent = toText(modelEl.selectedOptions[0]?.textContent, modelEl.value);
 metaOptionsEl.textContent = formatRequestedOptions(getRequestedOptions(), modelEl.value);
 renderJson({});
+renderFileTabs();
+

@@ -22,6 +22,8 @@ const optionInputs = [optSpeakerDiarizationEl, optEmotionSignalEl, optAccentSign
 const metaStatusEl = document.getElementById('meta-status');
 const metaFailureTypeEl = document.getElementById('meta-failure-type');
 const metaFailureNameEl = document.getElementById('meta-failure-name');
+const rowFailureTypeEl = document.getElementById('row-failure-type');
+const rowFailureNameEl = document.getElementById('row-failure-name');
 const metaModelEl = document.getElementById('meta-model');
 const metaOptionsEl = document.getElementById('meta-options');
 const metaFileNameEl = document.getElementById('meta-file-name');
@@ -45,10 +47,32 @@ const metaEmotionsEl = document.getElementById('meta-emotions');
 const metaAccentsEl = document.getElementById('meta-accents');
 const metaPiiTagsEl = document.getElementById('meta-pii-tags');
 const metaResponseBytesEl = document.getElementById('meta-response-bytes');
+const audioPlayerWrapEl = document.getElementById('audio-player-wrap');
+const audioPlayerEl = document.getElementById('audio-player');
+const autoscrollEl = document.getElementById('autoscroll');
 
 const API_BASE_URL = 'https://modulate-developer-apis.com';
 const API_WS_BASE_URL = API_BASE_URL.replace(/^https:\/\//i, 'wss://').replace(/^http:\/\//i, 'ws://');
 const API_KEY = '30b0ea76-da9d-424f-9fd7-423bc74a1184';
+
+const LANGUAGE_NAMES = new Intl.DisplayNames(['en'], { type: 'language' });
+function langCodeToName(code) {
+  try { return LANGUAGE_NAMES.of(code) || code; } catch { return code; }
+}
+
+const EMOTION_COLORS = {
+  angry: '#ff3554', contemptuous: '#ff3554', disgusted: '#ff3554', ashamed: '#ff3554',
+  afraid: '#b464c8', anxious: '#b464c8', stressed: '#b464c8',
+  surprised: '#b464c8', frustrated: '#b464c8',
+  excited: '#ff7850', hopeful: '#ff7850', proud: '#ff7850', curious: '#ff7850', amused: '#ff7850',
+  sad: '#0078c8', disappointed: '#0078c8', bored: '#0078c8',
+  tired: '#0078c8', concerned: '#0078c8', confused: '#0078c8',
+  calm: '#6e8cbe', confident: '#6e8cbe', interested: '#6e8cbe',
+  neutral: '#5a5a6e', unknown: '#5a5a6e',
+};
+function emotionColor(name) {
+  return EMOTION_COLORS[name.toLowerCase()] || null;
+}
 
 const MODEL_CONFIG = {
   'batch-fast': {
@@ -56,6 +80,7 @@ const MODEL_CONFIG = {
     endpoint: '/api/velma-2-stt-batch-english-vfast',
     ratePerHourUsd: 0.025,
     mode: 'batch',
+    speedFactor: 250,
     unsupported: new Set(['utterances', 'speakers', 'languages', 'emotions', 'accents', 'pii_tags', 'options']),
   },
   batch: {
@@ -63,6 +88,7 @@ const MODEL_CONFIG = {
     endpoint: '/api/velma-2-stt-batch',
     ratePerHourUsd: 0.03,
     mode: 'batch',
+    speedFactor: 10,
     unsupported: new Set(),
   },
   streaming: {
@@ -70,18 +96,34 @@ const MODEL_CONFIG = {
     endpoint: '/api/velma-2-stt-streaming',
     ratePerHourUsd: null,
     mode: 'streaming',
+    speedFactor: null,
     unsupported: new Set(),
   },
 };
 
 let latestPayload = null;
+let audioObjectUrl = null;
+let activeUtteranceEl = null;
 let latestPreviewText = '';
+let progressEstimatedMs = null;
 let mediaRecorder = null;
 let mediaStream = null;
 let recordedChunks = [];
 let recordingStartedAt = 0;
 let recordingTimerId = null;
 let shouldSubmitRecording = false;
+
+function probeFileDuration(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const audio = new Audio();
+    const cleanup = () => URL.revokeObjectURL(url);
+    audio.onloadedmetadata = () => { cleanup(); resolve(audio.duration * 1000); };
+    audio.onerror = () => { cleanup(); reject(); };
+    audio.src = url;
+    setTimeout(() => { cleanup(); reject(); }, 4000);
+  });
+}
 
 const INT_FMT = new Intl.NumberFormat('en-US');
 const DEC3_FMT = new Intl.NumberFormat('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
@@ -93,40 +135,40 @@ const UNSUPPORTED_BY_MODEL = Object.fromEntries(
   Object.entries(MODEL_CONFIG).map(([modelKey, config]) => [modelKey, config.unsupported || new Set()]),
 );
 
-function toText(value, fallback = '-') {
+function toText(value, fallback = '—') {
   if (value === null || value === undefined || value === '') return fallback;
   return String(value);
 }
 
 function formatCount(value, unit) {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return '-';
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '—';
   return `${INT_FMT.format(value)} ${unit}`;
 }
 
 function formatMb(bytes) {
-  if (typeof bytes !== 'number' || !Number.isFinite(bytes)) return '-';
+  if (typeof bytes !== 'number' || !Number.isFinite(bytes)) return '—';
   return `${DEC3_FMT.format(bytes / (1024 * 1024))} MB`;
 }
 
 function formatResponseBytes(bytes) {
-  if (typeof bytes !== 'number' || !Number.isFinite(bytes) || bytes < 0) return '-';
+  if (typeof bytes !== 'number' || !Number.isFinite(bytes) || bytes < 0) return '—';
   if (bytes < 1024) return `${INT_FMT.format(bytes)} B`;
   if (bytes < 1024 * 1024) return `${DEC2_FMT.format(bytes / 1024)} KB`;
   return `${DEC2_FMT.format(bytes / (1024 * 1024))} MB`;
 }
 
 function formatDurationMs(ms) {
-  if (typeof ms !== 'number' || !Number.isFinite(ms)) return '-';
+  if (typeof ms !== 'number' || !Number.isFinite(ms)) return '—';
   return `${INT_FMT.format(Math.round(ms))} ms`;
 }
 
 function formatSecondsFromMs(ms) {
-  if (typeof ms !== 'number' || !Number.isFinite(ms)) return '-';
+  if (typeof ms !== 'number' || !Number.isFinite(ms)) return '—';
   return `${DEC1_FMT.format(ms / 1000)} s`;
 }
 
 function formatMinutes(value) {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return '-';
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '—';
   return `${DEC1_FMT.format(value)} min`;
 }
 
@@ -171,7 +213,7 @@ function formatProcessingFactor(data) {
   const fasterMultiplier = durationSecondsForFactor / processingSecondsForFactor;
 
   if (fasterMultiplier >= 1) {
-    return `x${formatAdaptive(fasterMultiplier)} faster`;
+    return `×${formatAdaptive(fasterMultiplier)} faster`;
   }
 
   const slowerMultiplier = processingMs / audioDurationMs;
@@ -193,7 +235,7 @@ function setStatus(label, state = 'neutral') {
 }
 
 function formatRate(cost) {
-  if (!cost) return '-';
+  if (!cost) return '—';
 
   if (typeof cost.ratePerHourUsd === 'number' && cost.ratePerHourUsd > 0) {
     return `$${cost.ratePerHourUsd}/hour`;
@@ -203,7 +245,7 @@ function formatRate(cost) {
 }
 
 function formatCost(cost) {
-  if (!cost) return '-';
+  if (!cost) return '—';
 
   if (typeof cost.estimatedUsd === 'number') {
     return `$${cost.estimatedUsd.toFixed(6)} USD`;
@@ -294,6 +336,15 @@ function updateFeatureControlsForModel(modelKey) {
     if (label) {
       label.classList.toggle('disabled', !supportsOptions);
       label.title = supportsOptions ? '' : BATCH_ONLY_TOOLTIP;
+    }
+  }
+
+  const autoscrollLabel = autoscrollEl?.closest('.autoscroll-label');
+  if (autoscrollEl) {
+    autoscrollEl.disabled = !supportsOptions;
+    if (autoscrollLabel) {
+      autoscrollLabel.classList.toggle('disabled', !supportsOptions);
+      autoscrollLabel.title = supportsOptions ? '' : BATCH_ONLY_TOOLTIP;
     }
   }
 
@@ -494,6 +545,16 @@ function renderUtterancePreview(utterances) {
 
     const row = document.createElement('div');
     row.className = 'speaker-turn';
+    if (typeof utterance.start_ms === 'number') {
+      row.dataset.startMs = utterance.start_ms;
+      row.addEventListener('click', () => {
+        audioPlayerEl.currentTime = utterance.start_ms / 1000;
+        if (audioPlayerEl.paused) audioPlayerEl.play();
+      });
+    }
+    if (typeof utterance.start_ms === 'number' && typeof utterance.duration_ms === 'number') {
+      row.dataset.endMs = utterance.start_ms + utterance.duration_ms;
+    }
     const meta = document.createElement('div');
     meta.className = 'utterance-meta';
 
@@ -514,24 +575,32 @@ function renderUtterancePreview(utterances) {
     }
 
     if (typeof utterance.emotion === 'string' && utterance.emotion.trim()) {
+      const name = utterance.emotion.trim();
+      const color = emotionColor(name);
       const emotionEl = document.createElement('span');
-      emotionEl.className = 'signal-pill emotion';
-      emotionEl.textContent = utterance.emotion.trim();
+      if (color) {
+        emotionEl.className = 'signal-pill emotion';
+        emotionEl.style.background = color + '28';
+        emotionEl.style.color = color;
+      } else {
+        emotionEl.className = 'signal-pill neutral';
+      }
+      emotionEl.textContent = name;
       meta.appendChild(emotionEl);
-    }
-
-    if (typeof utterance.accent === 'string' && utterance.accent.trim()) {
-      const accentEl = document.createElement('span');
-      accentEl.className = 'signal-pill accent';
-      accentEl.textContent = utterance.accent.trim();
-      meta.appendChild(accentEl);
     }
 
     if (typeof utterance.language === 'string' && utterance.language.trim()) {
       const langEl = document.createElement('span');
-      langEl.className = 'signal-pill language';
-      langEl.textContent = utterance.language.trim();
+      langEl.className = 'signal-pill neutral';
+      langEl.textContent = langCodeToName(utterance.language.trim());
       meta.appendChild(langEl);
+    }
+
+    if (typeof utterance.accent === 'string' && utterance.accent.trim()) {
+      const accentEl = document.createElement('span');
+      accentEl.className = 'signal-pill neutral';
+      accentEl.textContent = utterance.accent.trim() + ' accent';
+      meta.appendChild(accentEl);
     }
 
     const bubble = document.createElement('p');
@@ -549,8 +618,21 @@ function renderUtterancePreview(utterances) {
 function updatePreview(payload) {
   if (payload?.status === 'processing') {
     latestPreviewText = '';
-    previewOutputEl.innerHTML =
-      '<span class="preview-processing">Processing<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></span>';
+    if (progressEstimatedMs) {
+      const totalS = progressEstimatedMs / 1000;
+      const roundedS = Math.max(5, Math.round(totalS / 5) * 5);
+      const label = roundedS >= 60
+        ? `About ${Math.round(roundedS / 60)} min to process`
+        : `About ${roundedS}s to process`;
+      previewOutputEl.innerHTML =
+        `<div class="processing-progress">` +
+        `<div class="progress-bar-wrap"><div class="progress-bar-fill" style="animation-duration:${totalS.toFixed(1)}s"></div></div>` +
+        `<div class="processing-progress-label">${label}</div>` +
+        `</div>`;
+    } else {
+      previewOutputEl.innerHTML =
+        '<span class="preview-processing">Processing<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></span>';
+    }
     return;
   }
 
@@ -568,7 +650,7 @@ function updatePreview(payload) {
   if (transcriptText) {
     previewOutputEl.textContent = transcriptText;
   } else {
-    previewOutputEl.textContent = payload?.success ? 'No transcript returned.' : 'No transcript yet.';
+    previewOutputEl.innerHTML = payload?.success ? 'No transcript returned.' : '<span class="empty-hint">Drop a file above to transcribe it.</span>';
   }
 }
 
@@ -600,8 +682,42 @@ async function copyTextToClipboard(text) {
   tempTextArea.remove();
 }
 
+function showAudioPlayer(file) {
+  if (audioObjectUrl) {
+    URL.revokeObjectURL(audioObjectUrl);
+  }
+  audioObjectUrl = URL.createObjectURL(file);
+  audioPlayerEl.src = audioObjectUrl;
+  audioPlayerWrapEl.hidden = false;
+}
+
+function getAudioDurationMs(file) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const audio = document.createElement('audio');
+    const cleanup = () => URL.revokeObjectURL(url);
+    audio.addEventListener('loadedmetadata', () => {
+      cleanup();
+      resolve(Number.isFinite(audio.duration) && audio.duration > 0 ? Math.round(audio.duration * 1000) : null);
+    });
+    audio.addEventListener('error', () => { cleanup(); resolve(null); });
+    audio.src = url;
+  });
+}
+
+async function showPreEstimate(file) {
+  const modelKey = modelEl.value;
+  const config = MODEL_CONFIG[modelKey];
+  if (!config || config.ratePerHourUsd === null) return;
+  const durationMs = await getAudioDurationMs(file);
+  if (durationMs === null) return;
+  const estimatedUsd = (durationMs / 3600000) * config.ratePerHourUsd;
+  metaCostEl.textContent = `~$${estimatedUsd.toFixed(6)} USD (est.)`;
+  metaCostEl.classList.add('cost-estimate');
+}
+
 function deriveClientFileType(file) {
-  if (!file) return '-';
+  if (!file) return '—';
 
   if (file.type) return file.type;
 
@@ -1121,31 +1237,33 @@ function resetMeta(file) {
   const options = getRequestedOptions();
   const supportsSignals = modelKey !== 'batch-fast';
   setStatus('Processing', 'processing');
-  metaFailureTypeEl.textContent = 'N/A';
-  metaFailureNameEl.textContent = 'N/A';
+  metaFailureTypeEl.textContent = '';
+  metaFailureNameEl.textContent = '';
+  rowFailureTypeEl.hidden = true;
+  rowFailureNameEl.hidden = true;
   metaModelEl.textContent = toText(modelEl.selectedOptions[0]?.textContent, modelEl.value);
   metaOptionsEl.textContent = formatRequestedOptions(options, modelKey);
-  metaFileNameEl.textContent = file?.name || '-';
+  metaFileNameEl.textContent = file?.name || '—';
   metaFileTypeEl.textContent = deriveClientFileType(file);
   metaFileSizeEl.textContent = formatMb(file?.size);
-  metaDurationMinEl.textContent = '-';
-  metaProcessingEl.textContent = '-';
-  metaRtfEl.textContent = '-';
-  metaHttpEl.textContent = '-';
-  metaEndpointEl.textContent = '-';
-  metaRequestIdEl.textContent = '-';
-  metaRateEl.textContent = '-';
-  metaCostEl.textContent = '-';
-  metaTokensEl.textContent = '-';
-  metaTranscriptCharsEl.textContent = '-';
-  metaTranscriptWordsEl.textContent = '-';
-  metaUtterancesEl.textContent = '-';
-  metaSpeakersEl.textContent = supportsSignals && options.speaker_diarization ? '-' : 'N/A';
-  metaLanguagesEl.textContent = '-';
-  metaEmotionsEl.textContent = supportsSignals && options.emotion_signal ? '-' : 'N/A';
-  metaAccentsEl.textContent = supportsSignals && options.accent_signal ? '-' : 'N/A';
-  metaPiiTagsEl.textContent = supportsSignals && options.pii_phi_tagging ? '-' : 'N/A';
-  metaResponseBytesEl.textContent = '-';
+  metaDurationMinEl.textContent = '—';
+  metaProcessingEl.textContent = '—';
+  metaRtfEl.textContent = '—';
+  metaHttpEl.textContent = '—';
+  metaEndpointEl.textContent = '—';
+  metaRequestIdEl.textContent = '—';
+  metaRateEl.textContent = '—';
+  metaCostEl.textContent = '—';
+  metaTokensEl.textContent = '—';
+  metaTranscriptCharsEl.textContent = '—';
+  metaTranscriptWordsEl.textContent = '—';
+  metaUtterancesEl.textContent = '—';
+  metaSpeakersEl.textContent = supportsSignals && options.speaker_diarization ? '—' : 'N/A';
+  metaLanguagesEl.textContent = '—';
+  metaEmotionsEl.textContent = supportsSignals && options.emotion_signal ? '—' : 'N/A';
+  metaAccentsEl.textContent = supportsSignals && options.accent_signal ? '—' : 'N/A';
+  metaPiiTagsEl.textContent = supportsSignals && options.pii_phi_tagging ? '—' : 'N/A';
+  metaResponseBytesEl.textContent = '—';
 }
 
 function updateMetaFromResponse(data, fallbackModel) {
@@ -1165,14 +1283,17 @@ function updateMetaFromResponse(data, fallbackModel) {
     setStatus(`FAILURE (${processingText})`, 'fail');
   }
   const failureInfo = getFailureInfo(data);
-  metaFailureTypeEl.textContent = failureInfo.type;
-  metaFailureNameEl.textContent = failureInfo.name;
+  const hasFailure = failureInfo.type && failureInfo.type !== 'N/A';
+  metaFailureTypeEl.textContent = hasFailure ? failureInfo.type : '';
+  metaFailureNameEl.textContent = hasFailure ? failureInfo.name : '';
+  rowFailureTypeEl.hidden = !hasFailure;
+  rowFailureNameEl.hidden = !hasFailure;
 
   metaModelEl.textContent = toText(data?.modelFullName, toText(data?.model, fallbackModel));
   metaOptionsEl.textContent = isUnsupported('options') ? 'N/A' : formatRequestedOptions(options, modelKey);
-  metaFileNameEl.textContent = toText(data?.meta?.fileName, '-');
-  metaFileTypeEl.textContent = toText(data?.meta?.fileMimeType, metaFileTypeEl.textContent || '-');
-  metaFileSizeEl.textContent = typeof data?.meta?.fileSizeBytes === 'number' ? formatMb(data.meta.fileSizeBytes) : '-';
+  metaFileNameEl.textContent = toText(data?.meta?.fileName);
+  metaFileTypeEl.textContent = toText(data?.meta?.fileMimeType, metaFileTypeEl.textContent || '—');
+  metaFileSizeEl.textContent = typeof data?.meta?.fileSizeBytes === 'number' ? formatMb(data.meta.fileSizeBytes) : '—';
   metaDurationMinEl.textContent = formatMinutes(data?.meta?.audioMinutes);
 
   metaProcessingEl.textContent = processingText;
@@ -1185,24 +1306,25 @@ function updateMetaFromResponse(data, fallbackModel) {
   if (typeof data?.api?.statusText === 'string' && data.api.statusText.trim()) {
     httpParts.push(data.api.statusText.trim());
   }
-  metaHttpEl.textContent = httpParts.length ? httpParts.join(' ') : '-';
+  metaHttpEl.textContent = httpParts.length ? httpParts.join(' ') : '—';
   metaEndpointEl.textContent = toText(data?.api?.endpoint);
   metaRequestIdEl.textContent = toText(data?.meta?.requestId);
 
   metaRateEl.textContent = formatRate(data?.cost);
   metaCostEl.textContent = formatCost(data?.cost);
+  metaCostEl.classList.remove('cost-estimate');
   metaTokensEl.textContent = formatTokens(data?.cost?.tokens);
 
   metaTranscriptCharsEl.textContent = formatCount(data?.meta?.transcriptChars, 'chars');
   metaTranscriptWordsEl.textContent = formatCount(data?.meta?.transcriptWords, 'words');
   metaUtterancesEl.textContent = isUnsupported('utterances')
     ? 'N/A'
-    : formatCount(data?.meta?.utteranceCount, 'utterances') === '-'
+    : formatCount(data?.meta?.utteranceCount, 'utterances') === '—'
       ? 'N/A'
       : formatCount(data?.meta?.utteranceCount, 'utterances');
   metaSpeakersEl.textContent = !diarizationEnabled
     ? 'N/A'
-    : formatCount(data?.meta?.speakerCount, 'speakers') === '-'
+    : formatCount(data?.meta?.speakerCount, 'speakers') === '—'
       ? 'N/A'
       : formatCount(data?.meta?.speakerCount, 'speakers');
 
@@ -1227,16 +1349,16 @@ function updateMetaFromResponse(data, fallbackModel) {
 
   metaResponseBytesEl.textContent = formatResponseBytes(data?.meta?.responseBytes);
 
-  if (metaRequestIdEl.textContent === '-' || !metaRequestIdEl.textContent) {
+  if (metaRequestIdEl.textContent === '—' || !metaRequestIdEl.textContent) {
     metaRequestIdEl.textContent = 'N/A';
   }
-  if (metaTokensEl.textContent === '-') {
+  if (metaTokensEl.textContent === '—') {
     metaTokensEl.textContent = 'N/A';
   }
-  if (metaTranscriptCharsEl.textContent === '-') {
+  if (metaTranscriptCharsEl.textContent === '—') {
     metaTranscriptCharsEl.textContent = 'N/A';
   }
-  if (metaTranscriptWordsEl.textContent === '-') {
+  if (metaTranscriptWordsEl.textContent === '—') {
     metaTranscriptWordsEl.textContent = 'N/A';
   }
 }
@@ -1248,6 +1370,12 @@ async function runWithFile(file) {
   const config = MODEL_CONFIG[model] || MODEL_CONFIG.batch;
   const options = getRequestedOptions();
   const startedAt = Date.now();
+
+  progressEstimatedMs = null;
+  if (config.speedFactor) {
+    const dur = await probeFileDuration(file).catch(() => null);
+    if (dur) progressEstimatedMs = dur / config.speedFactor;
+  }
 
   resetMeta(file);
 
@@ -1348,6 +1476,12 @@ modelEl.addEventListener('change', () => {
   metaOptionsEl.textContent = formatRequestedOptions(getRequestedOptions(), modelEl.value);
 });
 
+for (const optInput of optionInputs) {
+  optInput.addEventListener('change', () => {
+    metaOptionsEl.textContent = formatRequestedOptions(getRequestedOptions(), modelEl.value);
+  });
+}
+
 for (const button of tabButtons) {
   button.addEventListener('click', () => {
     setActiveTab(button.dataset.tab || 'preview');
@@ -1360,6 +1494,9 @@ dropZoneEl.addEventListener('click', () => {
 
 fileEl.addEventListener('change', () => {
   const file = fileEl.files?.[0];
+  if (!file) return;
+  showAudioPlayer(file);
+  void showPreEstimate(file);
   void runWithFile(file);
 });
 
@@ -1377,6 +1514,9 @@ dropZoneEl.addEventListener('drop', (event) => {
   dropZoneEl.classList.remove('drag');
 
   const file = event.dataTransfer?.files?.[0];
+  if (!file) return;
+  showAudioPlayer(file);
+  void showPreEstimate(file);
   void runWithFile(file);
 });
 
@@ -1422,8 +1562,49 @@ copyPreviewBtnEl.addEventListener('click', async () => {
   }
 });
 
+audioPlayerEl.addEventListener('timeupdate', () => {
+  const currentMs = audioPlayerEl.currentTime * 1000;
+  const turns = Array.from(previewOutputEl.querySelectorAll('.speaker-turn[data-start-ms]'));
+  // Keep the last utterance that has already started (sticky during silence)
+  let newActive = null;
+  for (const turn of turns) {
+    if (Number(turn.dataset.startMs) <= currentMs) newActive = turn;
+  }
+  for (const turn of turns) {
+    turn.classList.toggle('active-utterance', turn === newActive);
+  }
+  if (newActive && newActive !== activeUtteranceEl) {
+    activeUtteranceEl = newActive;
+    if (autoscrollEl.checked) {
+      newActive.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+});
+
+
+function syncSpacerHeight() {
+  const h1 = document.querySelector('h1');
+  const spacer = document.querySelector('.panel-title-spacer');
+  if (h1 && spacer) spacer.style.height = h1.getBoundingClientRect().height + 'px';
+}
+syncSpacerHeight();
+window.addEventListener('resize', syncSpacerHeight);
+
+const themeToggleEl = document.getElementById('theme-toggle');
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  themeToggleEl.querySelector('.icon-moon').style.display = theme === 'light' ? '' : 'none';
+  themeToggleEl.querySelector('.icon-sun').style.display = theme === 'dark' ? '' : 'none';
+  localStorage.setItem('demo-theme', theme);
+}
+themeToggleEl.addEventListener('click', () => {
+  applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+});
+applyTheme(localStorage.getItem('demo-theme') || 'light');
+
 setActiveTab('preview');
 updateInputWidgetForModel(modelEl.value);
 updateFeatureControlsForModel(modelEl.value);
+metaModelEl.textContent = toText(modelEl.selectedOptions[0]?.textContent, modelEl.value);
 metaOptionsEl.textContent = formatRequestedOptions(getRequestedOptions(), modelEl.value);
 renderJson({});

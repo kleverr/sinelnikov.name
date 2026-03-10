@@ -7,7 +7,7 @@
     <title>Modulate Developer API Demo</title>
     <link
       rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='0.9em' font-size='90'%3E%F0%9F%9B%A0%EF%B8%8F%3C/text%3E%3C/svg%3E"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='32' y2='32' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%23430f92'/%3E%3Cstop offset='.5' stop-color='%23fb3958'/%3E%3Cstop offset='1' stop-color='%23fc7856'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='7' fill='%23120021'/%3E%3Cg stroke='url(%23g)' stroke-width='2.5' stroke-linecap='round' fill='none'%3E%3Cline x1='6' y1='13' x2='6' y2='19'/%3E%3Cline x1='10.5' y1='9' x2='10.5' y2='23'/%3E%3Cline x1='15' y1='5' x2='15' y2='27'/%3E%3Cline x1='19.5' y1='10' x2='19.5' y2='22'/%3E%3Cline x1='24' y1='7' x2='24' y2='25'/%3E%3Cline x1='28.5' y1='12' x2='28.5' y2='20'/%3E%3C/g%3E%3C/svg%3E"
     />
     <style>
       :root {
@@ -117,6 +117,7 @@
 
       .file-tab.active {
         color: var(--text);
+        font-weight: 600;
         background: var(--panel);
         border-color: var(--panel-border);
         border-top: 2px solid #8c67ff;
@@ -470,7 +471,7 @@
       }
 
       th {
-        width: 220px;
+        white-space: nowrap;
         color: #cdbfe3;
         font-weight: 600;
       }
@@ -540,7 +541,7 @@
       }
 
       .panel-output {
-        flex: 7;
+        flex: 8;
         display: flex;
         flex-direction: column;
         min-height: 0;
@@ -548,7 +549,7 @@
       }
 
       .panel-right {
-        flex: 13;
+        flex: 12;
         display: flex;
         flex-direction: column;
         min-height: 0;
@@ -572,25 +573,43 @@
         padding: 6px 12px;
         border-top: 1px solid var(--panel-border);
         flex-shrink: 0;
+        background: rgba(140, 103, 255, 0.08);
       }
 
-      .toggle-view-btn {
-        margin-left: auto;
+      .viewer-tabs {
+        display: flex;
+        gap: 0;
+        border: 1px solid rgba(90, 170, 200, 0.35);
+        border-radius: 6px;
+        overflow: hidden;
+      }
+
+      .viewer-tab {
         border: none;
-        background: none;
-        padding: 0;
+        background: transparent;
+        color: var(--text);
         font: inherit;
-        font-size: 0.85rem;
-        color: var(--muted);
-        text-decoration: underline;
-        text-decoration-color: rgba(185, 172, 207, 0.3);
-        text-underline-offset: 3px;
+        font-size: 0.8rem;
+        padding: 4px 0;
+        width: 88px;
+        text-align: center;
         cursor: pointer;
+        border-right: 1px solid rgba(90, 170, 200, 0.35);
       }
 
-      .toggle-view-btn:hover {
+      .viewer-tab:last-child {
+        border-right: none;
+      }
+
+      .viewer-tab:hover:not(.active) {
         color: var(--text);
-        text-decoration-color: rgba(239, 233, 255, 0.4);
+        background: rgba(80, 180, 210, 0.1);
+      }
+
+      .viewer-tab.active {
+        color: var(--text);
+        background: rgba(80, 180, 210, 0.2);
+        font-weight: 600;
       }
 
       .tabs-row {
@@ -622,6 +641,7 @@
 
       .tab-btn.active {
         color: var(--text);
+        font-weight: 700;
       }
 
       .tab-btn:hover:not(.active) {
@@ -656,17 +676,18 @@
         padding: 0;
         font: inherit;
         font-size: 0.85rem;
-        color: var(--muted);
+        color: var(--text);
         text-decoration: underline;
-        text-decoration-color: rgba(185, 172, 207, 0.3);
+        text-decoration-color: rgba(239, 233, 255, 0.3);
         text-underline-offset: 3px;
         cursor: pointer;
         margin: 0;
+        margin-left: auto;
       }
 
       .copy-btn:hover {
         color: var(--text);
-        text-decoration-color: rgba(239, 233, 255, 0.4);
+        text-decoration-color: rgba(239, 233, 255, 0.5);
       }
 
       .tabs-actions {
@@ -903,20 +924,51 @@
         min-height: 0;
         display: flex;
         flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 12px;
-        cursor: pointer;
+        gap: 0;
         margin: 16px;
-        border: 2px dashed #4a3070;
-        border-radius: 8px;
-        background: rgba(100, 60, 160, 0.06);
-        transition: background 0.15s ease, border-color 0.15s ease;
         user-select: none;
       }
 
       .panel-new-upload[hidden] {
         display: none !important;
+      }
+
+      .panel-upload-zone {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        cursor: pointer;
+        border: 2px dashed #4a3070;
+        border-radius: 8px;
+        background: rgba(100, 60, 160, 0.06);
+        transition: background 0.15s ease, border-color 0.15s ease;
+        padding: 16px;
+      }
+
+      .panel-upload-zone.drag,
+      .panel-upload-zone:hover {
+        background: rgba(100, 60, 160, 0.16);
+        border-color: #7050a0;
+      }
+
+      .panel-upload-divider {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 6px 0;
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+
+      .panel-upload-divider::before,
+      .panel-upload-divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: var(--panel-border);
       }
 
       .panel-new-upload .panel-upload-hint {
@@ -933,20 +985,53 @@
       }
 
       .panel-new-upload .panel-upload-btn {
-        border: 1px solid rgba(255, 255, 255, 0.45);
-        color: rgba(255, 255, 255, 0.85);
-        background: transparent;
+        border: 1px solid #8c67ff;
+        color: #e4daff;
+        background: #2a1050;
         border-radius: 7px;
         padding: 7px 18px;
         font: inherit;
         font-size: 0.9rem;
         cursor: pointer;
+        transition: background 0.15s ease;
       }
 
-      .panel-new-upload.drag,
-      .panel-new-upload:hover {
-        background: rgba(100, 60, 160, 0.16);
-        border-color: #7050a0;
+      .panel-new-upload .panel-upload-btn:hover {
+        background: #381668;
+      }
+
+      .panel-record-btn {
+        border: 1px solid #7db1ff;
+        border-radius: 7px;
+        color: #dcedff;
+        background: #13345d;
+        padding: 7px 18px;
+        font: inherit;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: background 0.15s ease, border-color 0.15s ease;
+      }
+
+      .panel-record-btn:hover {
+        background: #1a4070;
+      }
+
+      .panel-record-btn.recording {
+        border-color: #ff7e7e;
+        background: #57222d;
+        color: #ffdada;
+        animation: pulseDot 1.2s infinite ease-in-out;
+      }
+
+      .panel-record-btn.recording:hover {
+        background: #6a2a36;
+      }
+
+      .panel-record-status {
+        font-size: 0.8rem;
+        color: var(--muted);
+        min-height: 1.2em;
+        font-variant-numeric: tabular-nums;
       }
 
       .file-tab.new-tab {
@@ -1016,7 +1101,7 @@
 
       [data-theme="light"] body { background: var(--bg); }
       [data-theme="light"] .panels-wrapper { background: var(--panel); }
-      [data-theme="light"] .tab-btn.active { font-weight: 700; color: #000; }
+      [data-theme="light"] .tab-btn.active { color: #000; }
       [data-theme="light"] .empty-hint { color: var(--muted); }
       [data-theme="light"] .autoscroll-label { color: var(--muted); }
       [data-theme="light"] .footer { color: var(--muted); }
@@ -1056,10 +1141,13 @@
       [data-theme="light"] .json-number { color: #a05a00; }
       [data-theme="light"] .json-boolean { color: #950060; }
       [data-theme="light"] .json-null { color: #7060a0; }
-      [data-theme="light"] .copy-btn { text-decoration-color: rgba(122,104,152,0.35); }
-      [data-theme="light"] .copy-btn:hover { text-decoration-color: rgba(26,0,58,0.4); }
-      [data-theme="light"] .toggle-view-btn { text-decoration-color: rgba(122,104,152,0.35); }
-      [data-theme="light"] .toggle-view-btn:hover { color: var(--text); text-decoration-color: rgba(26,0,58,0.4); }
+      [data-theme="light"] .viewer-footer { background: rgba(112, 80, 192, 0.08); }
+      [data-theme="light"] .copy-btn { color: var(--text); text-decoration-color: rgba(26,0,58,0.25); }
+      [data-theme="light"] .copy-btn:hover { text-decoration-color: rgba(26,0,58,0.45); }
+      [data-theme="light"] .viewer-tabs { border-color: rgba(60, 150, 180, 0.35); }
+      [data-theme="light"] .viewer-tab { color: var(--text); border-color: rgba(60, 150, 180, 0.35); }
+      [data-theme="light"] .viewer-tab:hover:not(.active) { color: var(--text); background: rgba(50, 160, 190, 0.08); }
+      [data-theme="light"] .viewer-tab.active { color: var(--text); background: rgba(50, 160, 190, 0.16); }
       [data-theme="light"] .audio-player-wrap audio { color-scheme: light; }
       [data-theme="light"] .file-tab { background: rgba(248,244,255,0.7); border-color: #d0c5e8; }
       [data-theme="light"] .file-tab.active { background: var(--panel); border-color: #d0c5e8; border-top-color: #7050c0; border-bottom-color: var(--panel); }
@@ -1067,10 +1155,15 @@
       [data-theme="light"] .file-tab[data-status="done"] .file-tab-dot { background: var(--ok); }
       [data-theme="light"] .file-tab[data-status="error"] .file-tab-dot { background: var(--fail); }
       [data-theme="light"] .file-tab-progress { background: rgba(112, 80, 192, 0.18); }
-      [data-theme="light"] .panel-new-upload { border-color: #c0a8e8; background: rgba(100, 60, 160, 0.04); }
-      [data-theme="light"] .panel-new-upload.drag,
-      [data-theme="light"] .panel-new-upload:hover { background: rgba(100, 60, 160, 0.10); border-color: #9070c8; }
-      [data-theme="light"] .panel-new-upload .panel-upload-btn { border-color: rgba(0, 0, 0, 0.25); color: var(--text); }
+      [data-theme="light"] .panel-upload-zone { border-color: #c0a8e8; background: rgba(100, 60, 160, 0.04); }
+      [data-theme="light"] .panel-upload-zone.drag,
+      [data-theme="light"] .panel-upload-zone:hover { background: rgba(100, 60, 160, 0.10); border-color: #9070c8; }
+      [data-theme="light"] .panel-new-upload .panel-upload-btn { border-color: #9070c8; color: #2a0060; background: #e8dcff; }
+      [data-theme="light"] .panel-new-upload .panel-upload-btn:hover { background: #dccef8; }
+      [data-theme="light"] .panel-record-btn { border-color: #4080d0; color: #0a2550; background: #d8e8ff; }
+      [data-theme="light"] .panel-record-btn:hover { background: #c8dcf8; }
+      [data-theme="light"] .panel-record-btn.recording { border-color: #cc4444; background: #ffe0e0; color: #6a1010; }
+      [data-theme="light"] .panel-record-btn.recording:hover { background: #ffd0d0; }
     </style>
   </head>
   <body>
@@ -1163,9 +1256,17 @@
 
       <section class="panel panel-right">
         <div id="panel-new-upload" class="panel-new-upload">
-          <span class="panel-upload-hint">Drop audio or video files here</span>
-          <span id="panel-upload-formats" class="panel-upload-formats"></span>
-          <button id="panel-choose-btn" class="panel-upload-btn" type="button">Choose Files…</button>
+          <div class="panel-upload-zone" id="panel-drop-zone">
+            <span class="panel-upload-hint">Drop audio or video files here</span>
+            <span id="panel-upload-formats" class="panel-upload-formats"></span>
+            <button id="panel-choose-btn" class="panel-upload-btn" type="button">Choose Files…</button>
+          </div>
+          <div class="panel-upload-divider"><span>or</span></div>
+          <div class="panel-upload-zone panel-record-zone" id="panel-record-zone">
+            <span class="panel-upload-hint">Record from microphone</span>
+            <button id="panel-record-btn" class="panel-record-btn" type="button">Start Recording</button>
+            <span id="panel-record-status" class="panel-record-status"></span>
+          </div>
         </div>
         <div id="viewer-shell" class="viewer-shell" hidden>
           <div id="audio-player-wrap" class="audio-player-wrap" hidden>
@@ -1184,10 +1285,17 @@
             <pre id="output">{}</pre>
           </div>
 
+          <div id="tab-call" class="tab-panel">
+            <pre id="output-call">{}</pre>
+          </div>
+
           <div class="viewer-footer">
-            <button id="copy-preview" class="copy-btn" type="button">Copy transcript</button>
-            <button id="copy-json" class="copy-btn" type="button" hidden>Copy json</button>
-            <button id="toggle-view" class="toggle-view-btn" type="button">Show API Response</button>
+            <div class="viewer-tabs">
+              <button class="viewer-tab active" data-tab="preview">Transcript</button>
+              <button class="viewer-tab" data-tab="call">API Call</button>
+              <button class="viewer-tab" data-tab="json">API Response</button>
+            </div>
+            <button id="copy-btn" class="copy-btn" type="button">Copy</button>
           </div>
         </div>
       </section>
@@ -1195,7 +1303,7 @@
       </div><!-- end .panels-area -->
     </main>
     <footer class="footer">
-      <span>&copy; Ilya Sinelnikov, 2026 &middot; v1.2 &middot; Updated March 9, 2026 &middot; Powered by <a href="https://modulate.ai" target="_blank" rel="noopener" style="color:inherit;text-decoration-color:rgba(185,172,207,0.4)">Modulate AI</a></span>
+      <span>&copy; <a href="https://sinelnikov.name" target="_blank" rel="noopener" style="color:inherit;text-decoration-color:rgba(185,172,207,0.4)">Ilya Sinelnikov</a>, 2026 &middot; v1.3 &middot; Updated March 9, 2026 &middot; Powered by <a href="https://modulate.ai" target="_blank" rel="noopener" style="color:inherit;text-decoration-color:rgba(185,172,207,0.4)">Modulate AI</a></span>
     </footer>
 
     <input id="file" type="file" multiple accept="audio/*,video/*,.aac,.aiff,.flac,.m4a,.mp3,.mp4,.mov,.ogg,.opus,.wav,.webm" />

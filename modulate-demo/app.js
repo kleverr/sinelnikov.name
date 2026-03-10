@@ -5,9 +5,10 @@ const recordToggleBtnEl = document.getElementById('record-toggle-btn');
 const recordStatusEl = document.getElementById('record-status');
 const outputEl = document.getElementById('output');
 const previewOutputEl = document.getElementById('preview-output');
-const copyPreviewBtnEl = document.getElementById('copy-preview');
-const copyJsonBtnEl = document.getElementById('copy-json');
-const toggleViewBtnEl = document.getElementById('toggle-view');
+const copyBtnEl = document.getElementById('copy-btn');
+const tabCallEl = document.getElementById('tab-call');
+const outputCallEl = document.getElementById('output-call');
+const viewerTabButtons = Array.from(document.querySelectorAll('.viewer-tab'));
 const tabButtons = Array.from(document.querySelectorAll('.tab-btn'));
 const tabPreviewEl = document.getElementById('tab-preview');
 const tabJsonEl = document.getElementById('tab-json');
@@ -50,8 +51,11 @@ const audioPlayerWrapEl = document.getElementById('audio-player-wrap');
 const audioPlayerEl = document.getElementById('audio-player');
 const autoscrollEl = document.getElementById('autoscroll');
 const panelNewUploadEl = document.getElementById('panel-new-upload');
+const panelDropZoneEl = document.getElementById('panel-drop-zone');
 const panelChooseBtnEl = document.getElementById('panel-choose-btn');
 const panelUploadFormatsEl = document.getElementById('panel-upload-formats');
+const panelRecordBtnEl = document.getElementById('panel-record-btn');
+const panelRecordStatusEl = document.getElementById('panel-record-status');
 const viewerShellEl = document.getElementById('viewer-shell');
 
 const API_BASE_URL = 'https://modulate-developer-apis.com';
@@ -130,6 +134,7 @@ function createFileEntry(file) {
     savedTime: 0,
     normalizedResponse: null,
     rawPayload: null,
+    apiCallInfo: null,
     previewText: '',
     model: modelEl.value,
     options: getRequestedOptions(),
@@ -228,6 +233,7 @@ function setActiveFileIndex(i) {
   } else {
     panelNewUploadEl.hidden = true;
     viewerShellEl.hidden = false;
+    stopPanelRecording(true);
     displayFile(files[i]);
   }
 }
@@ -295,6 +301,7 @@ function displayFile(entry) {
     latestPayload = null;
     latestPreviewText = '';
     renderJson({});
+    renderCallJson(entry.apiCallInfo);
     return;
   }
 
@@ -311,6 +318,7 @@ function displayFile(entry) {
     latestPayload = null;
     latestPreviewText = '';
     renderJson({ status: 'processing', file: { name: entry.file.name }, model: entry.model });
+    renderCallJson(entry.apiCallInfo);
     return;
   }
 
@@ -319,6 +327,7 @@ function displayFile(entry) {
   latestPayload = entry.rawPayload;
   latestPreviewText = entry.previewText;
   renderJson(entry.rawPayload);
+  renderCallJson(entry.apiCallInfo);
   updateMetaFromResponse(p, entry.model);
   progressEstimatedMs = null;
   updatePreview(p);
@@ -393,11 +402,34 @@ async function runWithFileAtIndex(i) {
   // Probe duration for progress estimate
   if (config.speedFactor) {
     const dur = await probeFileDuration(file).catch(() => null);
-    if (dur) entry.estimatedMs = dur / config.speedFactor;
+    if (dur && Number.isFinite(dur)) entry.estimatedMs = dur / config.speedFactor;
   }
 
   // Create audio URL upfront
   if (!entry.audioUrl) entry.audioUrl = URL.createObjectURL(file);
+
+  // Build API call info for the "Show API Call" tab
+  const callFormFields = {};
+  callFormFields.upload_file = `(binary) ${file.name} — ${(file.size / 1024).toFixed(1)} KB, ${file.type || 'unknown type'}`;
+  if (config.mode !== 'streaming' && config.endpoint !== '/api/velma-2-stt-batch-english-vfast') {
+    callFormFields.speaker_diarization = String(options.speaker_diarization);
+    callFormFields.emotion_signal = String(options.emotion_signal);
+    callFormFields.accent_signal = String(options.accent_signal);
+    callFormFields.pii_phi_tagging = String(options.pii_phi_tagging);
+  }
+  entry.apiCallInfo = {
+    method: config.mode === 'streaming' ? 'WebSocket' : 'POST',
+    url: config.mode === 'streaming'
+      ? `${API_WS_BASE_URL}${config.endpoint}`
+      : `${API_BASE_URL}${config.endpoint}`,
+    headers: {
+      'X-API-Key': API_KEY,
+    },
+    body: config.mode === 'streaming' ? undefined : {
+      type: 'multipart/form-data',
+      fields: callFormFields,
+    },
+  };
 
   entry.status = 'processing';
   updateTabStatus(i);
@@ -408,6 +440,7 @@ async function runWithFileAtIndex(i) {
     setPlayerSrc(entry);
     audioPlayerWrapEl.hidden = false;
     renderJson({ status: 'processing', file: { name: file.name }, model, options });
+    renderCallJson(entry.apiCallInfo);
   }
 
   const finalize = (payload, status) => {
@@ -642,6 +675,11 @@ function renderJson(payload) {
 
   latestPayload = payload;
   updatePreview(payload);
+}
+
+function renderCallJson(callInfo) {
+  const pretty = JSON.stringify(callInfo || {}, null, 2);
+  outputCallEl.innerHTML = syntaxHighlightJson(pretty);
 }
 
 function extractTranscriptText(payload) {
@@ -1001,18 +1039,21 @@ function updatePreview(payload) {
   }
 }
 
-function setActiveTab(tabName) {
-  const isPreview = tabName === 'preview';
+let activeViewerTab = 'preview';
 
-  tabPreviewEl.classList.toggle('active', isPreview);
-  tabJsonEl.classList.toggle('active', !isPreview);
-  copyPreviewBtnEl.hidden = !isPreview;
-  copyJsonBtnEl.hidden = isPreview;
-  if (toggleViewBtnEl) toggleViewBtnEl.textContent = isPreview ? 'Show API Response' : 'Show Transcript';
+function setActiveTab(tabName) {
+  activeViewerTab = tabName;
+
+  tabPreviewEl.classList.toggle('active', tabName === 'preview');
+  tabJsonEl.classList.toggle('active', tabName === 'json');
+  tabCallEl.classList.toggle('active', tabName === 'call');
+
+  for (const button of viewerTabButtons) {
+    button.classList.toggle('active', button.dataset.tab === tabName);
+  }
 
   for (const button of tabButtons) {
-    const active = button.dataset.tab === tabName;
-    button.classList.toggle('active', active);
+    button.classList.toggle('active', button.dataset.tab === tabName);
   }
 }
 
@@ -1541,6 +1582,123 @@ function stopRecording(cancel = false) {
   mediaRecorder.stop();
 }
 
+/* ── Panel recording (works with all models) ── */
+
+let panelMediaRecorder = null;
+let panelMediaStream = null;
+let panelRecordedChunks = [];
+let panelRecordingTimerId = null;
+let panelRecordingStartedAt = 0;
+
+function updatePanelRecordingUi() {
+  const isRecording = panelMediaRecorder?.state === 'recording';
+  panelRecordBtnEl.classList.toggle('recording', isRecording);
+  panelRecordBtnEl.textContent = isRecording ? 'Stop Recording' : 'Start Recording';
+  if (!isRecording && panelRecordStatusEl.dataset.final !== '1') {
+    panelRecordStatusEl.textContent = '';
+  }
+}
+
+function startPanelRecordingTimer() {
+  panelRecordingStartedAt = Date.now();
+  panelRecordingTimerId = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - panelRecordingStartedAt) / 1000);
+    const mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
+    const ss = String(elapsed % 60).padStart(2, '0');
+    panelRecordStatusEl.textContent = `Recording ${mm}:${ss}`;
+  }, 200);
+}
+
+function clearPanelRecordingTimer() {
+  if (panelRecordingTimerId) { clearInterval(panelRecordingTimerId); panelRecordingTimerId = null; }
+}
+
+function stopPanelMediaTracks() {
+  if (panelMediaStream) {
+    panelMediaStream.getTracks().forEach(t => t.stop());
+    panelMediaStream = null;
+  }
+}
+
+async function startPanelRecording() {
+  if (panelMediaRecorder?.state === 'recording') return;
+  if (!navigator.mediaDevices?.getUserMedia) {
+    panelRecordStatusEl.textContent = 'Microphone not supported';
+    return;
+  }
+  try {
+    panelMediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mimeCandidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
+    const mimeType = mimeCandidates.find(m => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(m));
+    panelMediaRecorder = mimeType ? new MediaRecorder(panelMediaStream, { mimeType }) : new MediaRecorder(panelMediaStream);
+    panelRecordedChunks = [];
+
+    panelMediaRecorder.addEventListener('dataavailable', (event) => {
+      if (event.data && event.data.size > 0) panelRecordedChunks.push(event.data);
+    });
+
+    panelMediaRecorder.addEventListener('stop', () => {
+      clearPanelRecordingTimer();
+      stopPanelMediaTracks();
+      const chunks = panelRecordedChunks;
+      const recorderMime = panelMediaRecorder?.mimeType || 'audio/webm';
+      panelRecordedChunks = [];
+      panelMediaRecorder = null;
+
+      if (!chunks.length) {
+        panelRecordStatusEl.textContent = 'No audio captured';
+        panelRecordStatusEl.dataset.final = '1';
+        updatePanelRecordingUi();
+        return;
+      }
+
+      const blob = new Blob(chunks, { type: recorderMime });
+      const ext = recorderMime.includes('ogg') ? 'ogg' : recorderMime.includes('wav') ? 'wav' : 'webm';
+      const recordedFile = new File([blob], `mic-recording-${Date.now()}.${ext}`, { type: recorderMime });
+
+      if (recordedFile.size <= 0) {
+        panelRecordStatusEl.textContent = 'No audio captured';
+        panelRecordStatusEl.dataset.final = '1';
+        updatePanelRecordingUi();
+        return;
+      }
+
+      panelRecordStatusEl.textContent = '';
+      panelRecordStatusEl.dataset.final = '';
+      updatePanelRecordingUi();
+      addFiles([recordedFile]);
+    });
+
+    panelMediaRecorder.start(200);
+    panelRecordStatusEl.dataset.final = '';
+    startPanelRecordingTimer();
+    updatePanelRecordingUi();
+  } catch (error) {
+    panelRecordStatusEl.textContent = error instanceof Error ? error.message : 'Microphone permission failed';
+    panelRecordStatusEl.dataset.final = '1';
+    stopPanelMediaTracks();
+    updatePanelRecordingUi();
+  }
+}
+
+function stopPanelRecording(cancel = false) {
+  if (!panelMediaRecorder || panelMediaRecorder.state !== 'recording') {
+    if (cancel) {
+      clearPanelRecordingTimer();
+      stopPanelMediaTracks();
+      panelRecordedChunks = [];
+      panelMediaRecorder = null;
+      panelRecordStatusEl.textContent = '';
+      updatePanelRecordingUi();
+    }
+    return;
+  }
+  if (cancel) {
+    panelRecordedChunks = [];
+  }
+  panelMediaRecorder.stop();
+}
+
 const UPLOAD_FORMATS = {
   'batch-fast': 'Opus only · up to 100 MB',
   'batch': 'AAC · AIFF · FLAC · MP3 · MP4 · MOV · OGG · Opus · WAV · WebM · up to 100 MB',
@@ -1714,9 +1872,9 @@ for (const button of tabButtons) {
   });
 }
 
-if (toggleViewBtnEl) {
-  toggleViewBtnEl.addEventListener('click', () => {
-    setActiveTab(tabJsonEl.classList.contains('active') ? 'preview' : 'json');
+for (const vtab of viewerTabButtons) {
+  vtab.addEventListener('click', () => {
+    setActiveTab(vtab.dataset.tab || 'preview');
   });
 }
 
@@ -1730,25 +1888,33 @@ panelChooseBtnEl.addEventListener('click', (event) => {
   fileEl.click();
 });
 
-panelNewUploadEl.addEventListener('click', () => {
+panelDropZoneEl.addEventListener('click', () => {
   fileEl.click();
 });
 
-panelNewUploadEl.addEventListener('dragover', (event) => {
+panelDropZoneEl.addEventListener('dragover', (event) => {
   event.preventDefault();
-  panelNewUploadEl.classList.add('drag');
+  panelDropZoneEl.classList.add('drag');
 });
 
-panelNewUploadEl.addEventListener('dragleave', () => {
-  panelNewUploadEl.classList.remove('drag');
+panelDropZoneEl.addEventListener('dragleave', () => {
+  panelDropZoneEl.classList.remove('drag');
 });
 
-panelNewUploadEl.addEventListener('drop', (event) => {
+panelDropZoneEl.addEventListener('drop', (event) => {
   event.preventDefault();
-  panelNewUploadEl.classList.remove('drag');
+  panelDropZoneEl.classList.remove('drag');
   const droppedFiles = event.dataTransfer?.files;
   if (!droppedFiles?.length) return;
   addFiles(droppedFiles);
+});
+
+panelRecordBtnEl.addEventListener('click', () => {
+  if (panelMediaRecorder?.state === 'recording') {
+    stopPanelRecording(false);
+    return;
+  }
+  void startPanelRecording();
 });
 
 recordToggleBtnEl.addEventListener('click', () => {
@@ -1760,33 +1926,24 @@ recordToggleBtnEl.addEventListener('click', () => {
   void startRecording();
 });
 
-copyJsonBtnEl.addEventListener('click', async () => {
-  try {
-    const jsonText = JSON.stringify(latestPayload ?? {}, null, 2);
-    await copyTextToClipboard(jsonText);
-    const previousText = copyJsonBtnEl.textContent;
-    copyJsonBtnEl.textContent = 'Copied';
-    setTimeout(() => {
-      copyJsonBtnEl.textContent = previousText || 'Copy json';
-    }, 1200);
-  } catch {
-    copyJsonBtnEl.textContent = 'Copy failed';
-    setTimeout(() => {
-      copyJsonBtnEl.textContent = 'Copy json';
-    }, 1200);
+copyBtnEl.addEventListener('click', async () => {
+  let text = '';
+  if (activeViewerTab === 'preview') {
+    text = latestPreviewText || '';
+  } else if (activeViewerTab === 'json') {
+    text = JSON.stringify(latestPayload ?? {}, null, 2);
+  } else if (activeViewerTab === 'call') {
+    const entry = files[activeFileIndex];
+    text = JSON.stringify(entry?.apiCallInfo ?? {}, null, 2);
   }
-});
-
-copyPreviewBtnEl.addEventListener('click', async () => {
-  if (!latestPreviewText) return;
-  const saved = copyPreviewBtnEl.textContent;
+  if (!text) return;
   try {
-    await copyTextToClipboard(latestPreviewText);
-    copyPreviewBtnEl.textContent = 'Copied';
-    setTimeout(() => { copyPreviewBtnEl.textContent = saved; }, 1200);
+    await copyTextToClipboard(text);
+    copyBtnEl.textContent = 'Copied';
+    setTimeout(() => { copyBtnEl.textContent = 'Copy'; }, 1200);
   } catch {
-    copyPreviewBtnEl.textContent = 'Copy failed';
-    setTimeout(() => { copyPreviewBtnEl.textContent = saved; }, 1200);
+    copyBtnEl.textContent = 'Copy failed';
+    setTimeout(() => { copyBtnEl.textContent = 'Copy'; }, 1200);
   }
 });
 

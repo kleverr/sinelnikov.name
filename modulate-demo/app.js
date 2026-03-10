@@ -105,7 +105,7 @@ const MODEL_CONFIG = {
 };
 
 let latestPayload = null;
-let audioObjectUrl = null;
+let playerCurrentSrc = '';
 let activeUtteranceEl = null;
 let latestPreviewText = '';
 let progressEstimatedMs = null;
@@ -127,6 +127,7 @@ function createFileEntry(file) {
     status: 'pending',    // 'pending' | 'processing' | 'done' | 'error'
     estimatedMs: null,
     audioUrl: null,
+    savedTime: 0,
     normalizedResponse: null,
     rawPayload: null,
     previewText: '',
@@ -207,6 +208,9 @@ function updateTabStatus(i) {
 }
 
 function setActiveFileIndex(i) {
+  if (activeFileIndex >= 0 && files[activeFileIndex] && !audioPlayerWrapEl.hidden) {
+    files[activeFileIndex].savedTime = audioPlayerEl.currentTime;
+  }
   activeFileIndex = i;
   // Update active class in-place so processing animations are not interrupted
   let fileIdx = 0;
@@ -229,6 +233,8 @@ function setActiveFileIndex(i) {
 }
 
 function removeFile(i) {
+  const removedEntry = files[i];
+  if (removedEntry?.audioUrl) URL.revokeObjectURL(removedEntry.audioUrl);
   files.splice(i, 1);
   if (files.length === 0) {
     activeFileIndex = -1;
@@ -297,9 +303,7 @@ function displayFile(entry) {
     progressEstimatedMs = entry.estimatedMs;
     updatePreview({ status: 'processing' });
     if (entry.audioUrl) {
-      if (audioObjectUrl && audioObjectUrl !== entry.audioUrl) URL.revokeObjectURL(audioObjectUrl);
-      audioObjectUrl = entry.audioUrl;
-      audioPlayerEl.src = entry.audioUrl;
+      setPlayerSrc(entry);
       audioPlayerWrapEl.hidden = false;
     } else {
       audioPlayerWrapEl.hidden = true;
@@ -319,12 +323,28 @@ function displayFile(entry) {
   progressEstimatedMs = null;
   updatePreview(p);
   if (entry.audioUrl) {
-    if (audioObjectUrl && audioObjectUrl !== entry.audioUrl) URL.revokeObjectURL(audioObjectUrl);
-    audioObjectUrl = entry.audioUrl;
-    audioPlayerEl.src = entry.audioUrl;
+    setPlayerSrc(entry);
     audioPlayerWrapEl.hidden = false;
   } else {
     audioPlayerWrapEl.hidden = true;
+  }
+}
+
+function setPlayerSrc(entry) {
+  // Skip reload only when the same URL is already loaded (metadata available).
+  // If readyState < HAVE_METADATA the previous load was interrupted (rapid tab
+  // switching cancels in-flight loads), so we must reload even if the URL matches.
+  if (playerCurrentSrc === entry.audioUrl && audioPlayerEl.readyState >= 1) return;
+  playerCurrentSrc = entry.audioUrl;
+  audioPlayerEl.src = entry.audioUrl;
+  audioPlayerEl.load(); // explicit load() ensures the browser actually starts
+  if (entry.savedTime > 0) {
+    const savedT = entry.savedTime;
+    const targetUrl = entry.audioUrl;
+    audioPlayerEl.addEventListener('loadedmetadata', function onMeta() {
+      audioPlayerEl.removeEventListener('loadedmetadata', onMeta);
+      if (playerCurrentSrc === targetUrl) audioPlayerEl.currentTime = savedT;
+    });
   }
 }
 
@@ -385,8 +405,7 @@ async function runWithFileAtIndex(i) {
     resetMeta(file);
     progressEstimatedMs = entry.estimatedMs;
     updatePreview({ status: 'processing' });
-    audioObjectUrl = entry.audioUrl;
-    audioPlayerEl.src = entry.audioUrl;
+    setPlayerSrc(entry);
     audioPlayerWrapEl.hidden = false;
     renderJson({ status: 'processing', file: { name: file.name }, model, options });
   }
@@ -1017,39 +1036,6 @@ async function copyTextToClipboard(text) {
   if (!ok) throw new Error('copy failed');
 }
 
-function showAudioPlayer(file) {
-  if (audioObjectUrl) {
-    URL.revokeObjectURL(audioObjectUrl);
-  }
-  audioObjectUrl = URL.createObjectURL(file);
-  audioPlayerEl.src = audioObjectUrl;
-  audioPlayerWrapEl.hidden = false;
-}
-
-function getAudioDurationMs(file) {
-  return new Promise((resolve) => {
-    const url = URL.createObjectURL(file);
-    const audio = document.createElement('audio');
-    const cleanup = () => URL.revokeObjectURL(url);
-    audio.addEventListener('loadedmetadata', () => {
-      cleanup();
-      resolve(Number.isFinite(audio.duration) && audio.duration > 0 ? Math.round(audio.duration * 1000) : null);
-    });
-    audio.addEventListener('error', () => { cleanup(); resolve(null); });
-    audio.src = url;
-  });
-}
-
-async function showPreEstimate(file) {
-  const modelKey = modelEl.value;
-  const config = MODEL_CONFIG[modelKey];
-  if (!config || config.ratePerHourUsd === null) return;
-  const durationMs = await getAudioDurationMs(file);
-  if (durationMs === null) return;
-  const estimatedUsd = (durationMs / 3600000) * config.ratePerHourUsd;
-  metaCostEl.textContent = `~$${estimatedUsd.toFixed(6)} USD (est.)`;
-  metaCostEl.classList.add('cost-estimate');
-}
 
 function deriveClientFileType(file) {
   if (!file) return '—';

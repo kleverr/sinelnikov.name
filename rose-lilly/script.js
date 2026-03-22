@@ -38,6 +38,7 @@ const closeLeaderboardButton = document.querySelector("#close-leaderboard-button
 const leaderboardBody = document.querySelector("#leaderboard-body");
 
 const STORAGE_KEY = "rose-lilly-leaderboard";
+const FIREBASE_URL = "https://rose-lilly-default-rtdb.firebaseio.com/leaderboard";
 
 function randomSecret() {
   const pool = [...DIGITS];
@@ -202,41 +203,63 @@ function resetMarks() {
   });
 }
 
-function loadLeaderboard() {
+function getLastName() {
   try {
-    const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-    return { entries: data.entries || [], lastName: data.lastName || "" };
+    return localStorage.getItem("rose-lilly-last-name") || "";
   } catch {
-    return { entries: [], lastName: "" };
+    return "";
   }
 }
 
-function saveLeaderboard(data) {
+function setLastName(name) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    localStorage.setItem("rose-lilly-last-name", name);
   } catch {
-    // localStorage full or unavailable — silently skip
+    // localStorage unavailable
   }
 }
 
-function addLeaderboardEntry(name, moves, history) {
-  const data = loadLeaderboard();
-  data.entries.push({
+async function loadLeaderboard() {
+  try {
+    const response = await fetch(`${FIREBASE_URL}.json`);
+    if (!response.ok) throw new Error("fetch failed");
+    const data = await response.json();
+    if (!data) return { entries: [], lastName: getLastName() };
+    const entries = Object.values(data).sort((a, b) => a.moves - b.moves);
+    return { entries, lastName: getLastName() };
+  } catch {
+    return { entries: [], lastName: getLastName() };
+  }
+}
+
+async function addLeaderboardEntry(name, moves, history) {
+  const entry = {
     name,
     date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
     moves,
     history: history
-      .filter((entry) => entry.type === "guess")
+      .filter((e) => e.type === "guess")
       .reverse()
-      .map((entry) => ({ guess: entry.guess, roses: entry.roses, lillies: entry.lillies })),
-  });
-  data.entries.sort((a, b) => a.moves - b.moves);
-  data.lastName = name;
-  saveLeaderboard(data);
+      .map((e) => ({ guess: e.guess, roses: e.roses, lillies: e.lillies })),
+  };
+
+  setLastName(name);
+
+  try {
+    const response = await fetch(`${FIREBASE_URL}.json`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(entry),
+    });
+    if (!response.ok) throw new Error("save failed");
+  } catch {
+    // Firebase unavailable — entry lost, but game continues
+  }
 }
 
-function renderLeaderboard() {
-  const { entries } = loadLeaderboard();
+async function renderLeaderboard() {
+  leaderboardBody.textContent = "Loading...";
+  const { entries } = await loadLeaderboard();
   leaderboardBody.innerHTML = "";
 
   if (entries.length === 0) {
@@ -304,7 +327,7 @@ function escapeHtml(text) {
 }
 
 function showWinDialog(moves) {
-  const { lastName } = loadLeaderboard();
+  const lastName = getLastName();
   winMessage.textContent = `You won in ${moves} move${moves === 1 ? "" : "s"}!`;
 
   if (state.usedHints) {
@@ -669,14 +692,14 @@ storyDialog.addEventListener("click", (event) => {
   }
 });
 
-winForm.addEventListener("submit", (event) => {
+winForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const name = winNameInput.value.trim();
   if (!name) return;
-  addLeaderboardEntry(name, state.move, state.history);
+  await addLeaderboardEntry(name, state.move, state.history);
   winDialog.close();
-  renderLeaderboard();
   leaderboardDialog.showModal();
+  await renderLeaderboard();
 });
 winDialog.addEventListener("click", (event) => {
   const rect = winDialog.getBoundingClientRect();
@@ -690,8 +713,8 @@ winDialog.addEventListener("click", (event) => {
   }
 });
 leaderboardButton.addEventListener("click", () => {
-  renderLeaderboard();
   leaderboardDialog.showModal();
+  renderLeaderboard();
 });
 closeLeaderboardButton.addEventListener("click", () => {
   leaderboardDialog.close();

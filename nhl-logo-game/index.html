@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NHL Crest Game</title>
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img class="brand-logo" src="assets/favicon.svg" alt="" />
+      <h1 class="brand-name">Match each NHL crest to the right era</h1>
+    </div>
+    <div class="score">
+      <span class="score-label">Total score</span>
+      <span class="score-value" id="totalScore">0</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="sidebar" id="teamNav" aria-label="Teams"></nav>
+
+    <main class="main">
+      <div class="pool" id="pool" aria-label="Logo pool">
+        <p class="pool-hint">Drag and drop the logo to the right era</p>
+        <div class="result" id="result" hidden></div>
+      </div>
+
+      <div class="timeline" id="timeline" aria-label="Era timeline"></div>
+
+      <div class="actions">
+        <button class="btn btn-primary" id="guessBtn">Guess</button>
+        <button class="btn btn-ghost" id="nextBtn" hidden>Next team →</button>
+        <button class="btn btn-ghost" id="replayBtn" hidden>Replay</button>
+      </div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p class="footer-left">© 2026</p>
+    <p class="footer-center">
+      Made with love in Boston by a Tampa Bay Lightning fan,
+      <a href="https://sinelnikov.name/" target="_blank" rel="noopener">Ilya Sinelnikov</a>
+    </p>
+    <p class="footer-right">
+      Logos from
+      <a href="https://1000logos.net" target="_blank" rel="noopener">1000logos.net</a>
+    </p>
+  </footer>
+
+  <script src="data.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>

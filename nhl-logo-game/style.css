@@ -312,10 +312,12 @@ body {
 
 /* (sizes now driven by --pool-logo on .pool) */
 
-/* In timeline: smaller, no card, just PNG with shape-following shadow. */
+/* In timeline: smaller, no card, just PNG with shape-following shadow.
+   Size is driven by --era-logo-size (set by JS based on viewport + bucket
+   width) so logos shrink to fit narrow buckets on iPhone. */
 .era .logo {
-  width: 84px;
-  height: 84px;
+  width: var(--era-logo-size, 84px);
+  height: var(--era-logo-size, 84px);
   background: transparent;
   border-radius: 0;
   padding: 0;
@@ -573,22 +575,35 @@ body {
     overflow-y: visible;
     border-right: none;
     border-bottom: 1px solid var(--border);
-    position: static;
-    top: auto;
+    /* Stay pinned below the topbar so the active team is always visible
+       even after the user scrolls the page. */
+    position: sticky;
+    top: var(--topbar-h);
     bottom: auto;
-    padding: 12px 16px;
-    z-index: auto;
+    padding: 10px 14px;
+    z-index: 4;
+    -webkit-overflow-scrolling: touch;
   }
   .team-btn {
     border-radius: 999px;
     width: auto;
     white-space: nowrap;
-    padding: 10px 14px;
+    padding: 8px 12px;
     border: 1px solid var(--border);
     flex-shrink: 0;
   }
   .team-btn:hover { background: white; border-color: var(--fg); }
-  .team-btn.active { border-color: var(--fg); }
+  /* Active pill: keep the team color so the user can clearly see what they
+     pressed, with the team name still readable on top. */
+  .team-btn.active {
+    background: var(--team-color);
+    color: var(--team-text);
+    border-color: var(--team-color);
+  }
+  .team-btn.active .team-score {
+    background: rgba(255, 255, 255, 0.85);
+    color: var(--team-color);
+  }
   .team-name { overflow: visible; }
 }
 @media (max-width: 1099px) {
@@ -598,10 +613,79 @@ body {
   .topbar { padding: 8px 16px; }
   .main { padding: 12px 16px; }
   .pool { --pool-logo: 88px; --pool-gap: 14px; --pool-pad: 14px; }
-  .era .logo { width: 72px; height: 72px; padding: 0; }
   .timeline {
     --logo-h: 72px;
     --logo-gap: 10px;
   }
   .footer { padding: 18px 20px; }
+}
+
+/* ---------------- iPhone (≤480px) ---------------- */
+@media (max-width: 480px) {
+  .topbar {
+    padding: 8px 12px;
+    gap: 10px;
+  }
+  .brand { gap: 8px; }
+  .brand-logo { width: 24px; height: 24px; }
+  .brand-name { font-size: 13px; line-height: 1.15; letter-spacing: -0.02em; }
+  .score { gap: 6px; }
+  .score-label { display: none; }
+  .score-value { font-size: 18px; }
+
+  .sidebar { padding: 8px 10px; gap: 6px; }
+  .team-btn { padding: 6px 10px; font-size: 12.5px; gap: 4px; }
+  .team-logo { width: 20px; height: 20px; }
+  .team-btn .team-score {
+    font-size: 11px;
+    padding: 1px 7px;
+  }
+
+  .main {
+    padding: 8px 10px 12px;
+    --main-gap: 10px;
+  }
+
+  /* Pool: fit 4 narrow columns so even teams with many logos stay compact
+     vertically on a phone. JS sets --pool-cols. */
+  .pool {
+    --pool-logo: 60px;
+    --pool-gap: 10px;
+    --pool-pad: 10px;
+    --pool-hint-h: 14px;
+    margin-bottom: 10px;
+  }
+  .pool-hint { font-size: 11px; bottom: 4px; }
+
+  /* Timeline: shorter bar, smaller default logo. JS may further shrink
+     --era-logo-size to fit narrow buckets when a team has many eras. */
+  .timeline {
+    --logo-h: 56px;
+    --logo-gap: 8px;
+    --bar-h: 26px;
+    --logo-bar-gap: 6px;
+    margin-bottom: 12px;
+  }
+  .era-years { font-size: 10px; letter-spacing: 0; }
+
+  .actions { padding-top: 12px; gap: 8px; }
+  .btn { font-size: 13px; padding: 8px 18px; }
+
+  .result .big { font-size: 56px; }
+  .result .sub { font-size: 12px; margin-top: 6px; }
+
+  /* Footer collapses to a single centered line on phones — copyright is
+     dropped to save space; the credit line is the meaningful one. */
+  .footer {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    padding: 10px 14px;
+    text-align: center;
+  }
+  .footer-left { display: none; }
+  .footer-center, .footer-right {
+    justify-self: center;
+    text-align: center;
+  }
+  .footer p { font-size: 11px; line-height: 1.3; }
 }

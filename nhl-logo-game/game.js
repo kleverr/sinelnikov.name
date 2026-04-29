@@ -66,6 +66,17 @@
         if (i === currentTeamIdx && !locked) return;
         currentTeamIdx = i;
         render();
+        // Make sure the just-pressed team stays visible. On mobile the
+        // sidebar is a horizontal scroller and the active pill can be
+        // off-screen; on desktop it's a vertical column.
+        requestAnimationFrame(() => {
+          const active = teamNav.querySelector('.team-btn.active');
+          active?.scrollIntoView({
+            behavior: 'smooth',
+            inline: 'center',
+            block: 'nearest',
+          });
+        });
       };
       teamNav.appendChild(btn);
     });
@@ -148,20 +159,36 @@
    * stale --row values and tag narrow eras (used to soften the date label
    * styling on tight viewports). All logos sit at row 0, anchored to the
    * bottom of their bucket above the date strip.
+   *
+   * Also scales --era-logo-size down so logos don't overflow narrow buckets
+   * on phones with many-era teams (e.g. Bruins on iPhone has ~36px buckets).
    */
   function layoutTimeline() {
     const eras = [...timelineEl.querySelectorAll('.era')];
     if (!eras.length) return;
+    let minBucket = Infinity;
     eras.forEach(era => {
       era.style.removeProperty('--row');
       era.classList.remove('narrow');
       const r = era.getBoundingClientRect();
       if (r.width < 60) era.classList.add('narrow');
+      if (r.width < minBucket) minBucket = r.width;
     });
+
+    const w = window.innerWidth;
+    const defaultSize = w < 480 ? 56 : w < 720 ? 72 : 84;
+    const inset = w < 480 ? 4 : 6;
+    const size = Math.max(
+      28,
+      Math.min(defaultSize, Math.floor(minBucket - inset))
+    );
+    timelineEl.style.setProperty('--era-logo-size', size + 'px');
+    timelineEl.style.setProperty('--logo-h', size + 'px');
   }
 
   function getFitCols() {
     const w = window.innerWidth;
+    if (w < 480)  return 4;
     if (w < 720)  return 3;
     if (w < 1100) return 4;
     if (w < 1500) return 5;
@@ -175,27 +202,29 @@
    * stable when adding more teams later.
    */
   function applyLockedSizes() {
-    const isMobile = window.innerWidth < 720;
-    const isTablet = window.innerWidth < 1100 && !isMobile;
-    const POOL_LOGO = isMobile ? 88  : isTablet ? 100 : 110;
-    const POOL_GAP  = isMobile ? 14  : isTablet ? 20  : 28;
-    const POOL_PAD  = isMobile ? 14  : isTablet ? 16 : 18;
+    const w = window.innerWidth;
+    const isPhone  = w < 480;
+    const isMobile = w < 720;
+    const isTablet = w < 1100 && !isMobile;
+    const POOL_LOGO = isPhone ? 60 : isMobile ? 88  : isTablet ? 100 : 110;
+    const POOL_GAP  = isPhone ? 10 : isMobile ? 14  : isTablet ? 20  : 28;
+    const POOL_PAD  = isPhone ? 10 : isMobile ? 14  : isTablet ? 16  : 18;
 
     const fitCols = getFitCols();
     const maxLogos = Math.max(...TEAMS.map(t => t.logos.length));
     const poolRows = Math.ceil(maxLogos / fitCols);
-    const HINT_H = 16;
+    const HINT_H = isPhone ? 14 : 16;
     const poolH = poolRows * POOL_LOGO + (poolRows - 1) * POOL_GAP + 2 * POOL_PAD + HINT_H;
     pool.style.height = poolH + 'px';
     pool.style.setProperty('--pool-cols', fitCols);
 
     // Timeline: equal buckets, single row, fixed height. No row-stacking,
     // so the height is just one logo + gap + label-strip + padding.
-    const TL_LOGO    = isMobile ? 72 : 84;
-    const barH       = 34;
-    const logoBarGap = 10;
-    const padTop     = 8;
-    const padBottom  = 4;
+    const TL_LOGO    = isPhone ? 56 : isMobile ? 72 : 84;
+    const barH       = isPhone ? 26 : 34;
+    const logoBarGap = isPhone ? 6  : 10;
+    const padTop     = isPhone ? 4  : 8;
+    const padBottom  = isPhone ? 2  : 4;
     const tlH = padTop + TL_LOGO + logoBarGap + barH + padBottom;
     timelineEl.style.height = tlH + 'px';
   }
@@ -516,4 +545,9 @@
 
   applyLockedSizes();
   render();
+  // Center the initial active team in the (possibly horizontal) sidebar.
+  requestAnimationFrame(() => {
+    const active = teamNav.querySelector('.team-btn.active');
+    active?.scrollIntoView({ inline: 'center', block: 'nearest' });
+  });
 })();

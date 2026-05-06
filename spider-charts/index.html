@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spider Chart</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="card">
+    <div class="layout">
+      <div class="chart-col">
+        <h1 class="chart-title" contenteditable="true" spellcheck="false">Model 1</h1>
+        <div class="chart-wrap">
+          <svg id="chart" viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
+            <g id="grid"></g>
+            <g id="axes"></g>
+            <g id="scale"></g>
+            <polygon id="poly"></polygon>
+            <g id="labels"></g>
+            <g id="handles"></g>
+          </svg>
+        </div>
+        <div class="tabs" id="tabs" role="tablist"></div>
+      </div>
+
+      <aside class="controls">
+        <div class="control-group">
+          <div class="values"></div>
+          <button id="addAxis" class="btn-secondary btn-add">+ Add axis</button>
+        </div>
+
+        <div class="control-group color-row">
+          <span class="row-label">Color</span>
+          <div class="swatch-group">
+            <div class="swatches" id="swatches"></div>
+            <span class="swatch-divider" aria-hidden="true"></span>
+            <input type="color" id="customColor" class="swatch-custom" aria-label="Custom color" />
+          </div>
+        </div>
+
+        <div class="control-group">
+          <div class="settings-row">
+            <span class="row-label">Scale max</span>
+            <div class="settings-controls">
+              <button class="stepper" id="scaleDec" aria-label="Decrease scale">−</button>
+              <span class="val" id="scaleVal">5</span>
+              <button class="stepper" id="scaleInc" aria-label="Increase scale">+</button>
+            </div>
+          </div>
+          <button id="restore" class="btn-secondary">Restore defaults</button>
+        </div>
+
+        <button id="download" class="btn-primary">Download PNG</button>
+      </aside>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

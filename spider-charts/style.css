@@ -142,9 +142,10 @@ body {
   background: rgba(0, 0, 0, 0.04);
 }
 .tab.active {
-  background: white;
-  border-color: rgba(0, 0, 0, 0.1);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 0 0 3px rgba(0, 122, 255, 0.12);
+  background: rgba(0, 0, 0, 0.07);
+}
+.tab.active .tab-name {
+  font-weight: 600;
 }
 .tab.untouched {
   opacity: 0.55;
@@ -432,7 +433,7 @@ body {
   border-radius: 50%;
 }
 .swatch-custom::-webkit-color-swatch {
-  border: 1.5px dashed rgba(0, 0, 0, 0.45);
+  border: none;
   border-radius: 50%;
   background: conic-gradient(
     from 0deg,
@@ -440,7 +441,7 @@ body {
   );
 }
 .swatch-custom::-moz-color-swatch {
-  border: 1.5px dashed rgba(0, 0, 0, 0.45);
+  border: none;
   border-radius: 50%;
   background: conic-gradient(
     from 0deg,

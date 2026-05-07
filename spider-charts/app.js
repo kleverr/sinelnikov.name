@@ -563,7 +563,7 @@ function rebuildTabs() {
 function confirmDeleteSlot(i) {
   const slot = store.slots[i];
   if (store.slots.length <= 1) return;
-  if (slot.edited && !confirm(`Delete "${slot.title}"?`)) return;
+  if (!confirm(`Delete "${slot.title}"?`)) return;
   deleteSlot(i);
 }
 

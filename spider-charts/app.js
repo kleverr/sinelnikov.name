@@ -1,8 +1,16 @@
-const DEFAULT_AXES = ['Cost', 'Accuracy', 'Throughput', 'Velma fit', 'Leaderboards', 'Uniqueness'];
+const DEFAULT_AXES = ['Cost', 'Accuracy', 'Latency', 'Velma fit', 'PR', 'Uniqueness'];
+const AXIS_DESCRIPTIONS = {
+  'Cost': 'Processing incurring cost compared to peers, 5 is the cheapest model on the market.',
+  'Accuracy': 'Subjective perceived output quality and our internal evals.',
+  'Latency': 'Response time under typical load, processing time for batching, latency for streaming.',
+  'Velma fit': 'How the model helps Velma better detect behaviors or uncover more use cases.',
+  'PR': 'Press and brand upside from shipping this — buzz, demos, leaderboard talk.',
+  'Uniqueness': 'Differentiation versus what competitors already ship in market.',
+};
 const DEFAULT_MAX = 5;
 const DEFAULT_COLOR = '#007AFF';
 const DEFAULT_VALUE = 3;
-const INITIAL_SLOT_COUNT = 10;
+const INITIAL_SLOT_COUNT = 6;
 const MAX_SLOT_COUNT = 50;
 
 const MIN_AXES = 3;
@@ -11,13 +19,21 @@ const MIN_SCALE = 2;
 const MAX_SCALE = 10;
 
 const PRESETS = ['#007AFF', '#5856D6', '#AF52DE', '#FF2D55', '#FF3B30', '#FF9500', '#34C759', '#30B0C7'];
+const SLOT_PRESETS = [
+  { title: 'STT Multilingual', color: '#007AFF' },
+  { title: 'STT English Fast', color: '#34C759' },
+  { title: 'Deepfake Detection', color: '#FF3B30' },
+  { title: 'PII/PHI Redaction', color: '#AF52DE' },
+  { title: 'Music Detection', color: '#FF9500' },
+  { title: 'Velma', color: '#5856D6' },
+];
 const STORAGE_KEY = 'spider-chart-store';
 const LEGACY_KEY = 'spider-chart-state';
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 const CX = 300;
 const CY = 300;
-const MAX_R = 175;
+const MAX_R = 215;
 const LABEL_OFFSET_SIDE = 36;
 const LABEL_OFFSET_VERT = 20;
 
@@ -25,11 +41,12 @@ let store = defaultStore();
 let state = store.slots[store.active];
 
 function defaultSlot(i) {
+  const preset = SLOT_PRESETS[i];
   return {
-    title: `Model ${i + 1}`,
+    title: preset ? preset.title : `Model ${i + 1}`,
     names: [...DEFAULT_AXES],
     values: DEFAULT_AXES.map(() => DEFAULT_VALUE),
-    color: DEFAULT_COLOR,
+    color: preset ? preset.color : DEFAULT_COLOR,
     max: DEFAULT_MAX,
     edited: false,
   };
@@ -225,6 +242,28 @@ function buildScale() {
   });
 }
 
+function drawLabelUnderline(i) {
+  const g = document.getElementById('labels');
+  const old = g.querySelector(`line[data-underline="${i}"]`);
+  if (old) old.remove();
+  const text = g.querySelector(`.axis-label[data-index="${i}"]`);
+  if (!text || !text.classList.contains('has-tip')) return;
+  let bbox;
+  try { bbox = text.getBBox(); } catch (_) { return; }
+  const y = bbox.y + bbox.height + 2;
+  const line = document.createElementNS(SVG_NS, 'line');
+  line.setAttribute('x1', bbox.x);
+  line.setAttribute('x2', bbox.x + bbox.width);
+  line.setAttribute('y1', y);
+  line.setAttribute('y2', y);
+  line.setAttribute('stroke', 'rgba(0,0,0,0.22)');
+  line.setAttribute('stroke-width', '0.75');
+  line.setAttribute('stroke-dasharray', '2 2');
+  line.setAttribute('pointer-events', 'none');
+  line.dataset.underline = i;
+  g.appendChild(line);
+}
+
 function buildLabels() {
   clearGroup('labels');
   const g = document.getElementById('labels');
@@ -248,8 +287,14 @@ function buildLabels() {
     text.dataset.index = i;
     text.classList.add('axis-label');
     text.textContent = state.names[i];
+    const desc = AXIS_DESCRIPTIONS[state.names[i]];
+    if (desc) {
+      text.dataset.tip = desc;
+      text.classList.add('has-tip');
+    }
     g.appendChild(text);
   }
+  for (let i = 0; i < axisCount(); i++) drawLabelUnderline(i);
 }
 
 function buildHandles() {
@@ -333,8 +378,19 @@ function buildValueRows() {
       state.names[i] = nameEl.textContent.replace(/\n/g, ' ');
       markEdited();
       save();
+      const newDesc = AXIS_DESCRIPTIONS[state.names[i]] || '';
       const label = document.querySelector(`.axis-label[data-index="${i}"]`);
-      if (label) label.textContent = state.names[i];
+      if (label) {
+        label.textContent = state.names[i];
+        if (newDesc) {
+          label.dataset.tip = newDesc;
+          label.classList.add('has-tip');
+        } else {
+          delete label.dataset.tip;
+          label.classList.remove('has-tip');
+        }
+        drawLabelUnderline(i);
+      }
       updateActiveTab();
     });
     nameEl.addEventListener('blur', () => {
@@ -747,8 +803,68 @@ function downloadPNG() {
   img.src = url;
 }
 
+function setupTooltip() {
+  const tip = document.createElement('div');
+  tip.className = 'tip';
+  document.body.appendChild(tip);
+  let activeEl = null;
+
+  const position = (el) => {
+    const rect = el.getBoundingClientRect();
+    const tipRect = tip.getBoundingClientRect();
+    let x = rect.left + rect.width / 2 - tipRect.width / 2;
+    let y = rect.top - tipRect.height - 8;
+    if (y < 4) y = rect.bottom + 8;
+    x = Math.max(6, Math.min(window.innerWidth - tipRect.width - 6, x));
+    tip.style.left = x + 'px';
+    tip.style.top = y + 'px';
+  };
+
+  const show = (el) => {
+    const text = el.dataset ? el.dataset.tip : (el.getAttribute && el.getAttribute('data-tip'));
+    if (!text) return;
+    activeEl = el;
+    tip.textContent = text;
+    tip.classList.add('visible');
+    position(el);
+  };
+
+  const hide = () => {
+    activeEl = null;
+    tip.classList.remove('visible');
+  };
+
+  const findTipEl = (target) => {
+    if (!target) return null;
+    let el = target;
+    while (el && el !== document.body) {
+      const has =
+        (el.dataset && el.dataset.tip) ||
+        (el.getAttribute && el.getAttribute('data-tip'));
+      if (has) return el;
+      el = el.parentNode;
+    }
+    return null;
+  };
+
+  document.addEventListener('mouseover', (e) => {
+    const el = findTipEl(e.target);
+    if (el && el !== activeEl) show(el);
+  });
+  document.addEventListener('mouseout', (e) => {
+    const el = findTipEl(e.target);
+    if (el && el === activeEl) {
+      const related = e.relatedTarget;
+      if (!related || findTipEl(related) !== el) hide();
+    }
+  });
+  window.addEventListener('scroll', hide, true);
+  window.addEventListener('resize', hide);
+}
+
 function init() {
   load();
+  setupTooltip();
 
   const titleEl = document.querySelector('.chart-title');
   titleEl.textContent = state.title;

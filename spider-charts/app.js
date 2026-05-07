@@ -2,7 +2,8 @@ const DEFAULT_AXES = ['Cost', 'Accuracy', 'Throughput', 'Velma fit', 'Leaderboar
 const DEFAULT_MAX = 5;
 const DEFAULT_COLOR = '#007AFF';
 const DEFAULT_VALUE = 3;
-const SLOT_COUNT = 10;
+const INITIAL_SLOT_COUNT = 10;
+const MAX_SLOT_COUNT = 50;
 
 const MIN_AXES = 3;
 const MAX_AXES = 12;
@@ -37,7 +38,7 @@ function defaultSlot(i) {
 function defaultStore() {
   return {
     active: 0,
-    slots: Array.from({ length: SLOT_COUNT }, (_, i) => defaultSlot(i)),
+    slots: Array.from({ length: INITIAL_SLOT_COUNT }, (_, i) => defaultSlot(i)),
   };
 }
 
@@ -113,14 +114,11 @@ function mergeSlot(def, partial, i) {
 function load() {
   try {
     const raw = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (raw && Array.isArray(raw.slots)) {
-      store = defaultStore();
-      const slots = raw.slots.slice(0, SLOT_COUNT);
-      slots.forEach((s, i) => {
-        store.slots[i] = mergeSlot(defaultSlot(i), s, i);
-      });
+    if (raw && Array.isArray(raw.slots) && raw.slots.length > 0) {
+      const slots = raw.slots.slice(0, MAX_SLOT_COUNT);
+      store = { active: 0, slots: slots.map((s, i) => mergeSlot(defaultSlot(i), s, i)) };
       const ai = Number(raw.active);
-      store.active = Number.isInteger(ai) && ai >= 0 && ai < SLOT_COUNT ? ai : 0;
+      store.active = Number.isInteger(ai) && ai >= 0 && ai < store.slots.length ? ai : 0;
       state = store.slots[store.active];
       return;
     }
@@ -532,6 +530,7 @@ function thumbSvgFor(slot) {
 function rebuildTabs() {
   const wrap = document.getElementById('tabs');
   wrap.innerHTML = '';
+  const canRemove = store.slots.length > 1;
   store.slots.forEach((slot, i) => {
     const btn = document.createElement('button');
     btn.className = 'tab';
@@ -543,10 +542,60 @@ function rebuildTabs() {
     btn.innerHTML = `
       ${thumbSvgFor(slot)}
       <span class="tab-name">${escapeHtml(slot.title || `Model ${i + 1}`)}</span>
+      <span class="tab-remove" data-act="remove" role="button" tabindex="0" aria-label="Delete model" ${canRemove ? '' : 'hidden'}>×</span>
     `;
-    btn.addEventListener('click', () => setActive(i));
+    btn.addEventListener('click', (e) => {
+      const target = e.target.closest('[data-act]');
+      if (target && target.dataset.act === 'remove') {
+        e.stopPropagation();
+        confirmDeleteSlot(i);
+        return;
+      }
+      setActive(i);
+    });
     wrap.appendChild(btn);
   });
+
+  const addBtn = document.getElementById('addModel');
+  if (addBtn) addBtn.disabled = store.slots.length >= MAX_SLOT_COUNT;
+}
+
+function confirmDeleteSlot(i) {
+  const slot = store.slots[i];
+  if (store.slots.length <= 1) return;
+  if (slot.edited && !confirm(`Delete "${slot.title}"?`)) return;
+  deleteSlot(i);
+}
+
+function deleteSlot(i) {
+  if (store.slots.length <= 1) return;
+  store.slots.splice(i, 1);
+  if (store.active === i) {
+    store.active = Math.min(i, store.slots.length - 1);
+    state = store.slots[store.active];
+    save();
+    document.querySelector('.chart-title').textContent = state.title;
+    rebuildAll();
+  } else {
+    if (store.active > i) store.active--;
+    state = store.slots[store.active];
+    save();
+  }
+  rebuildTabs();
+}
+
+function addModel() {
+  if (store.slots.length >= MAX_SLOT_COUNT) return;
+  const idx = store.slots.length;
+  store.slots.push(defaultSlot(idx));
+  store.active = idx;
+  state = store.slots[idx];
+  save();
+  document.querySelector('.chart-title').textContent = state.title;
+  rebuildAll();
+  rebuildTabs();
+  const newTab = document.querySelector(`.tab[data-i="${idx}"]`);
+  if (newTab) newTab.scrollIntoView({ block: 'nearest' });
 }
 
 function updateActiveTab() {
@@ -736,6 +785,7 @@ function init() {
     setColor(e.target.value);
   });
   document.getElementById('download').addEventListener('click', downloadPNG);
+  document.getElementById('addModel').addEventListener('click', addModel);
 
   rebuildAll();
   rebuildTabs();

@@ -438,12 +438,6 @@ body {
   min-width: 0;
   color: var(--text);
 }
-.tab-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex: 0 0 auto;
-}
 @media (max-width: 760px) {
   .tabs {
     grid-template-columns: repeat(5, minmax(0, 1fr));

@@ -543,7 +543,6 @@ function rebuildTabs() {
     btn.innerHTML = `
       ${thumbSvgFor(slot)}
       <span class="tab-name">${escapeHtml(slot.title || `Model ${i + 1}`)}</span>
-      <span class="tab-dot" style="background:${slot.color}"></span>
     `;
     btn.addEventListener('click', () => setActive(i));
     wrap.appendChild(btn);
@@ -558,8 +557,6 @@ function updateActiveTab() {
   tab.classList.toggle('untouched', !slot.edited);
   const name = tab.querySelector('.tab-name');
   if (name) name.textContent = slot.title || `Model ${i + 1}`;
-  const dot = tab.querySelector('.tab-dot');
-  if (dot) dot.style.background = slot.color;
   const oldThumb = tab.querySelector('svg.tab-thumb');
   if (oldThumb) {
     const tmp = document.createElement('div');

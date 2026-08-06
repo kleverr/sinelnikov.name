@@ -15,7 +15,7 @@
   --accent: #5b9cf5;
   --ok: #37c26c;
   --warn: #f5b840;
-  --c-white: #ece7d8;
+  --c-white: #e6dcc2; /* creamy ivory so pure-white marks read against it */
   --c-blue: #3a74d6;
   --c-green: #27a35d;
   --c-red: #cc4437;
@@ -91,14 +91,14 @@ select { background: var(--panel2); color: var(--text); border: 1px solid var(--
 .card.selectable { cursor: pointer; }
 .card.selected { box-shadow: 0 0 0 2px var(--warn), 0 3px 7px rgba(0,0,0,.4); }
 /* colored band at the top communicates the card's bonus color; flat like print */
-.card .band { display: flex; align-items: center; gap: 4px; padding: 4px 7px; min-height: 28px; border-bottom: 1px solid rgba(0,0,0,.18); }
+.card .band { display: flex; align-items: center; gap: 4px; padding: 4px 7px; min-height: 28px; }
 .card .pts { font-size: 18px; font-weight: 800; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.55); }
 .card .pts.zero { opacity: .4; }
 .card .crowns { font-size: 15px; color: #ffd75e; letter-spacing: -2px; text-shadow: 0 1px 2px rgba(0,0,0,.55); }
 .card .bmarks { margin-left: auto; display: flex; }
-/* bonus marks: physical tokens with a crisp white rim so they pop on any band */
-.bmark { width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 0 2px rgba(255,255,255,.9), 0 2px 4px rgba(0,0,0,.55), inset 0 1px 1px rgba(255,255,255,.3), inset 0 -2px 2px rgba(0,0,0,.22); }
-.bmark + .bmark { margin-left: -6px; }
+/* bonus marks: plain white circles, one per bonus */
+.bmark { width: 13px; height: 13px; border-radius: 50%; flex-shrink: 0; background: #fff; }
+.bmark + .bmark { margin-left: 3px; }
 .card .band.c-white .pts { color: #47423a; text-shadow: none; }
 .card .band.c-white .crowns { color: #b8860b; text-shadow: none; }
 .card .cardbody { display: flex; flex-direction: column; flex: 1; padding: 4px 7px 6px; }
@@ -108,7 +108,7 @@ select { background: var(--panel2); color: var(--text); border: 1px solid var(--
 .cost .cc { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.7); box-shadow: 0 1px 3px rgba(0,0,0,.45), inset 0 1px 1px rgba(255,255,255,.28), inset 0 -2px 2px rgba(0,0,0,.2); flex-shrink: 0; position: relative; }
 /* on hover, show right on the card which cost you cannot cover yet and by how much */
 .card.short:hover .cc.have { opacity: 0.45; }
-.card.short:hover .cc.lack::after { content: attr(data-lack); position: absolute; top: -9px; right: -6px; background: #7d0f06; color: #fff; font-size: 9px; font-weight: 700; line-height: 1; padding: 2px 3px; border-radius: 7px; text-shadow: none; box-shadow: 0 0 0 1px rgba(255,255,255,.5), 0 1px 2px rgba(0,0,0,.4); }
+.card.short:hover .cc.lack::after { content: attr(data-lack); position: absolute; top: -9px; right: -6px; background: #7d0f06; color: #fff; font-size: 9px; font-weight: 700; line-height: 1; padding: 2px 3px; border-radius: 7px; text-shadow: none; box-shadow: 0 1px 2px rgba(0,0,0,.4); }
 .needhint { position: absolute; left: 7px; right: 7px; bottom: 30px; font-size: 9px; color: #f0a49b; opacity: 0; transition: opacity .15s; pointer-events: none; display: flex; align-items: center; gap: 3px; }
 .card.short:hover .needhint { opacity: 1; }
 .needhint .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
@@ -119,8 +119,8 @@ select { background: var(--panel2); color: var(--text); border: 1px solid var(--
 .card.mini .band { min-height: 22px; padding: 2px 6px; }
 .card.mini .pts { font-size: 13px; }
 .card.mini .crowns { font-size: 12px; }
-.card.mini .bmarks .bmark { width: 11px; height: 11px; }
-.card.mini .bmarks .bmark + .bmark { margin-left: -5px; }
+.card.mini .bmarks .bmark { width: 10px; height: 10px; }
+.card.mini .bmarks .bmark + .bmark { margin-left: 2px; }
 .card.mini .cardbody { padding: 3px 5px 4px; }
 .card.mini .ability { font-size: 8px; min-height: 10px; }
 .card.mini .cost .cc { width: 14px; height: 14px; font-size: 9px; }
@@ -1388,9 +1388,8 @@ if (typeof module !== 'undefined') module.exports = { CARDS, ROYALS };
     const bonusTitle = card.color === 'joker'
       ? (jokerColor ? `Joker bonus assigned to ${jokerColor}` : 'Joker: copies one of your bonus colors')
       : card.color === 'none' ? 'No bonus (grey card)' : `Bonus: ${card.color}`;
-    const markColor = card.color === 'joker' && !jokerColor ? 'joker' : bonusColor;
     const marks = card.color === 'none' ? '' :
-      `<span class="bmarks" title="${bonusTitle}">${`<span class="bmark c-${markColor}"></span>`.repeat(card.bonus || 1)}</span>`;
+      `<span class="bmarks" title="${bonusTitle}">${'<span class="bmark"></span>'.repeat(card.bonus || 1)}</span>`;
     const ability = card.ability
       ? `<div class="ability" title="${ABILITY_TITLE[card.ability]}">${ABILITY_TEXT[card.ability]}</div>`
       : '<div class="ability"></div>';

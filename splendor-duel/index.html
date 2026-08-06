@@ -94,7 +94,8 @@ select { background: var(--panel2); color: var(--text); border: 1px solid var(--
 .card .pts.zero { opacity: .4; }
 .card .crowns { font-size: 15px; color: #ffd75e; letter-spacing: -2px; text-shadow: 0 1px 2px rgba(0,0,0,.55); }
 .card .bmarks { margin-left: auto; display: flex; }
-.bmark { width: 15px; height: 15px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 0 1.5px rgba(255,255,255,.55), 0 1px 2px rgba(0,0,0,.35); }
+/* bonus marks look like physical tokens sitting on the band */
+.bmark { width: 15px; height: 15px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,.45), inset 0 1px 1px rgba(255,255,255,.3), inset 0 -2px 2px rgba(0,0,0,.2); }
 .bmark + .bmark { margin-left: -7px; }
 .card .band.c-white .pts { color: #47423a; text-shadow: none; }
 .card .band.c-white .crowns { color: #b8860b; text-shadow: none; }
@@ -104,9 +105,8 @@ select { background: var(--panel2); color: var(--text); border: 1px solid var(--
 /* cost circles look like the physical tokens they represent */
 .cost .cc { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.7); box-shadow: 0 1px 3px rgba(0,0,0,.45), inset 0 1px 1px rgba(255,255,255,.28), inset 0 -2px 2px rgba(0,0,0,.2); flex-shrink: 0; position: relative; }
 /* on hover, show right on the card which cost you cannot cover yet and by how much */
-.card.short:hover .cc.lack { box-shadow: 0 0 0 2px #e0524a, 0 1px 3px rgba(0,0,0,.45), inset 0 1px 1px rgba(255,255,255,.28), inset 0 -2px 2px rgba(0,0,0,.2); }
 .card.short:hover .cc.have { opacity: 0.45; }
-.card.short:hover .cc.lack::after { content: attr(data-lack); position: absolute; top: -9px; right: -6px; background: #e0524a; color: #fff; font-size: 9px; font-weight: 700; line-height: 1; padding: 2px 3px; border-radius: 7px; text-shadow: none; }
+.card.short:hover .cc.lack::after { content: attr(data-lack); position: absolute; top: -9px; right: -6px; background: #7d0f06; color: #fff; font-size: 9px; font-weight: 700; line-height: 1; padding: 2px 3px; border-radius: 7px; text-shadow: none; box-shadow: 0 0 0 1px rgba(255,255,255,.5), 0 1px 2px rgba(0,0,0,.4); }
 .needhint { position: absolute; left: 7px; right: 7px; bottom: 30px; font-size: 9px; color: #f0a49b; opacity: 0; transition: opacity .15s; pointer-events: none; display: flex; align-items: center; gap: 3px; }
 .card.short:hover .needhint { opacity: 1; }
 .needhint .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
@@ -122,19 +122,22 @@ select { background: var(--panel2); color: var(--text); border: 1px solid var(--
 .card.mini .cardbody { padding: 3px 5px 4px; }
 .card.mini .ability { font-size: 8px; min-height: 10px; }
 .card.mini .cost .cc { width: 14px; height: 14px; font-size: 9px; }
-.royal { width: 76px; height: 60px; border-radius: 8px; background: linear-gradient(160deg, #3a2f55, #251d3a); border: 1px solid transparent; padding: 6px 8px; position: relative; flex-shrink: 0; }
+/* royals: same outline treatment as regular cards (shadow, no visible border) */
+.royal { width: 76px; height: 60px; border-radius: 8px; background: linear-gradient(160deg, #3a2f55, #251d3a); border: 1px solid transparent; box-shadow: 0 3px 7px rgba(0,0,0,.4); padding: 6px 8px; position: relative; flex-shrink: 0; }
 .royal .pts { font-size: 15px; font-weight: 800; }
 .royal .ability { font-size: 10px; color: #b7a8dd; }
-.royal.selectable { cursor: pointer; border-color: var(--warn); box-shadow: 0 0 0 2px var(--warn); }
-.royal.taken { opacity: 0.18; }
+.royal.selectable { cursor: pointer; border-color: var(--warn); box-shadow: 0 0 0 2px var(--warn), 0 3px 7px rgba(0,0,0,.4); }
+.royal.taken { opacity: 0.18; box-shadow: none; }
 
 /* ---------- middle table ---------- */
 .tablerow { background: var(--panel); border-radius: 10px; padding: 10px; }
 .royalsrow { display: flex; align-items: center; gap: 10px; }
 .royalsrow .privpool { margin-left: auto; display: flex; gap: 5px; align-items: center; color: var(--dim); font-size: 12px; }
 .gamerow { display: flex; gap: 14px; }
-.pyramid { display: flex; flex-direction: column; gap: 8px; }
-.pyr-row { display: flex; gap: 6px; align-items: center; }
+.decks { display: flex; flex-direction: column; gap: 8px; }
+/* pyramid like the physical layout: each row centered over the wider one below */
+.pyramid { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.pyr-row { display: flex; gap: 6px; }
 .deck { width: 54px; height: 116px; border-radius: 8px; background: repeating-linear-gradient(45deg, #26314e, #26314e 6px, #1e2740 6px, #1e2740 12px); border: 1px solid transparent; box-shadow: 0 3px 8px rgba(0,0,0,.45); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--dim); font-weight: 700; flex-shrink: 0; }
 .deck.selectable { cursor: pointer; }
 .deck.selected { border-color: var(--warn); box-shadow: 0 0 0 2px var(--warn); }
@@ -181,6 +184,10 @@ select { background: var(--panel2); color: var(--text); border: 1px solid var(--
 #savearea .saved { color: var(--ok); }
 .hidden { display: none !important; }
 
+/* footer */
+#footer { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 18px 24px 22px; color: var(--dim); font-size: 12px; }
+#footer a { color: var(--text); }
+
 /* leaderboard dialog */
 dialog { background: var(--panel); color: var(--text); border: none; border-radius: 12px; padding: 16px; min-width: 480px; max-width: 620px; margin: auto; }
 dialog::backdrop { background: rgba(8, 11, 20, 0.7); }
@@ -214,6 +221,11 @@ dialog::backdrop { background: rgba(8, 11, 20, 0.7); }
   </div>
   <div class="mid" id="mid"></div>
 </div>
+<footer id="footer">
+  <span>&copy; 2026</span>
+  <span>Made with love in Boston by <a href="https://sinelnikov.name/" target="_blank" rel="noopener">Ilya Sinelnikov</a></span>
+  <span>A fan version of <a href="https://www.spacecowboys.fr/en/our-games/splendor-duel" target="_blank" rel="noopener">Splendor Duel</a> by Space Cowboys &middot; <a href="https://en.doc.boardgamearena.com/Gamehelpsplendorduel" target="_blank" rel="noopener">How to play</a></span>
+</footer>
 <div id="overlay" class="hidden">
   <div class="box">
     <h2></h2>
@@ -1364,11 +1376,11 @@ if (typeof module !== 'undefined') module.exports = { CARDS, ROYALS };
       })
       .join('');
     let needHint = '';
-    if (info) {
-      const parts = [`short ${info.short}`];
+    if (info && (info.gold || info.privileges)) {
+      const parts = [];
       if (info.gold) parts.push(`<span class="dot c-gold"></span>${info.gold}`);
       if (info.privileges) parts.push(`<span class="scroll mini"></span>${info.privileges}`);
-      needHint = `<div class="needhint" title="Tokens still missing after bonuses and gold; gold and privileges can help">${parts.join('<span style="opacity:.5">·</span>')}</div>`;
+      needHint = `<div class="needhint" title="You have gold / privileges that can help close the gap">${parts.join('<span style="opacity:.5">·</span>')}</div>`;
     }
     const crowns = card.crowns ? `<span class="crowns">${'♛'.repeat(card.crowns)}</span>` : '';
     const pts = `<span class="pts${card.points ? '' : ' zero'}">${card.points}</span>`;
@@ -1495,15 +1507,17 @@ if (typeof module !== 'undefined') module.exports = { CARDS, ROYALS };
     const me = game.players[game.current];
     const humanTurn = isHuman(game.current) && !busy && game.winner === null;
     const canAct = humanTurn && game.pending.length === 0 && !game.turn.mandatoryDone;
-    const rows = [3, 2, 1].map((lv) => {
+    const decks = [3, 2, 1].map((lv) => {
       const deckCnt = game.decks[lv].length;
       const deckSel = cardSel && cardSel.kind === 'deck' && cardSel.level === lv ? 'selected' : '';
       const deckClickable = canAct && deckCnt > 0 && me.reserved.length < 3 && game.board.includes('gold');
-      const deck = `<div class="deck ${deckClickable ? 'selectable' : ''} ${deckSel}"
+      return `<div class="deck ${deckClickable ? 'selectable' : ''} ${deckSel}"
         ${deckClickable ? `data-action="deck" data-level="${lv}"` : ''}
         title="Level ${lv} deck: ${deckCnt} cards${deckClickable ? ' — click to reserve the top card' : ''}">
         <span class="lvl">${'●'.repeat(lv)}</span><span class="cnt">${deckCnt}</span>
       </div>`;
+    }).join('');
+    const rows = [3, 2, 1].map((lv) => {
       const slots = game.pyramid[lv].map((cid, slot) => {
         if (!cid) return `<div class="card" style="opacity:.15"></div>`;
         const card = E.CARD_BY_ID[cid];
@@ -1512,9 +1526,9 @@ if (typeof module !== 'undefined') module.exports = { CARDS, ROYALS };
         return cardHTML(card, `${buyable ? 'buyable' : ''} ${canAct ? 'selectable' : ''} ${selCls}`,
           `data-action="pyrcard" data-id="${cid}" data-level="${lv}" data-slot="${slot}"`);
       }).join('');
-      return `<div class="pyr-row">${deck}${slots}</div>`;
+      return `<div class="pyr-row">${slots}</div>`;
     }).join('');
-    return `<div class="pyramid">${rows}</div>`;
+    return `<div class="decks">${decks}</div><div class="pyramid">${rows}</div>`;
   }
 
   function renderBoard() {

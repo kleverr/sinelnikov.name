@@ -1,0 +1,1839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Splendor Duel</title>
+<style>
+:root {
+  --bg: #0f1523;
+  --panel: #1a2236;
+  --panel2: #212c47;
+  --line: #32405f;
+  --text: #dbe4f5;
+  --dim: #8b99b8;
+  --accent: #5b9cf5;
+  --ok: #37c26c;
+  --warn: #f5b840;
+  --c-white: #ece7d8;
+  --c-blue: #3a74d6;
+  --c-green: #27a35d;
+  --c-red: #cc4437;
+  --c-black: #3a4460;
+  --c-pearl: #d489ae;
+  --c-gold: #ddb23c;
+  --c-none: #7d8698;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: var(--bg); color: var(--text); font: 14px/1.35 -apple-system, "Segoe UI", Roboto, sans-serif; }
+body { zoom: 1.5; }
+button { font: inherit; color: inherit; background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 5px 12px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { opacity: 0.45; cursor: default; }
+button.primary { background: #2b4d86; border-color: #3f6cb4; }
+
+header { display: flex; align-items: center; gap: 14px; padding: 8px 16px; border-bottom: 1px solid var(--line); }
+header h1 { font-size: 17px; letter-spacing: 0.5px; margin-right: 6px; }
+header .spacer { flex: 1; }
+header .goal { color: var(--dim); font-size: 12px; }
+select { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
+
+#layout { display: flex; gap: 12px; padding: 12px 16px; align-items: flex-start; }
+.side { width: 268px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px; }
+#side { display: flex; flex-direction: column; gap: 12px; }
+.mid { flex: none; display: flex; flex-direction: column; gap: 10px; }
+#logbox { background: var(--panel); border-radius: 10px; padding: 8px; max-height: 330px; overflow-y: auto; font-size: 11px; }
+#logbox .entry { padding: 2px 4px; border-radius: 4px; color: var(--dim); }
+#logbox .entry b { color: var(--text); }
+#logbox .entry.p0 b { color: #7fb3ff; }
+#logbox .entry.p1 b { color: #ffb37f; }
+
+/* ---------- player panels ---------- */
+.panel { background: var(--panel); border: 1px solid transparent; border-radius: 10px; padding: 10px; }
+.panel.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.panel .head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.panel .head .name { font-weight: 700; }
+.panel .head .score { margin-left: auto; display: flex; gap: 10px; font-weight: 600; }
+.panel .head .score span { white-space: nowrap; }
+.colorgrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
+.colorgrid .cg-head { font-size: 10px; color: var(--dim); text-transform: uppercase; }
+/* card stacks: one plate per bonus, count them visually like piles in the real game.
+   column-reverse: first DOM child = bottom of the pile, later children overlap on top */
+.stackwrap { height: 68px; display: flex; flex-direction: column-reverse; align-items: center; }
+.bar { width: 30px; height: 16px; flex-shrink: 0; border-radius: 4px; box-shadow: 0 2px 3px rgba(0,0,0,.45); }
+.bar + .bar { margin-bottom: -8px; }
+.bar.empty { background: none; box-shadow: none; border: 1px dashed #273353; }
+/* token piles: coins stacked like chips, count them visually */
+.pile { height: 54px; display: flex; flex-direction: column-reverse; align-items: center; }
+.coin { width: 25px; height: 25px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 2px 3px rgba(0,0,0,.5), inset 0 1px 1px rgba(255,255,255,.22), inset 0 -2px 2px rgba(0,0,0,.18); }
+.coin + .coin { margin-bottom: -17px; }
+.coin.empty { background: none; box-shadow: none; border: 1px dashed #273353; }
+.pile.clickable { cursor: pointer; }
+.pile.clickable .coin { box-shadow: 0 0 0 2px var(--warn), 0 2px 3px rgba(0,0,0,.5); }
+/* prestige earned in this color (counts toward the 10-in-one-color win) */
+.cbadge { font-size: 10px; color: #e5c15c; margin-top: 3px; min-height: 13px; }
+.star { color: #e5c15c; }
+.zero { opacity: 0.25; }
+.privrow { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+/* privilege scroll: rolled parchment, distinct from gold coins */
+.scroll { display: inline-block; position: relative; width: 13px; height: 20px; margin: 2px 2px; background: linear-gradient(90deg, #b9a67c, #efe6c8 35%, #dccfa4 70%, #a08a5c); border-radius: 2px; vertical-align: middle; }
+.scroll::before, .scroll::after { content: ''; position: absolute; left: -2.5px; right: -2.5px; height: 6px; background: linear-gradient(180deg, #8f7748, #6e5a33); border-radius: 3px; box-shadow: 0 1px 2px rgba(0,0,0,.4); }
+.scroll::before { top: -2px; }
+.scroll::after { bottom: -2px; }
+.scroll.pool { width: 15px; height: 25px; }
+.reserved { display: flex; gap: 6px; margin-top: 8px; min-height: 10px; flex-wrap: wrap; }
+
+/* ---------- cards ---------- */
+.card { width: 96px; height: 116px; border-radius: 8px; background: var(--panel2); border: 1px solid transparent; box-shadow: 0 3px 7px rgba(0,0,0,.4); position: relative; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
+.card.buyable { border-color: var(--ok); box-shadow: 0 0 0 1px var(--ok), 0 3px 7px rgba(0,0,0,.4); cursor: pointer; }
+.card.selectable { cursor: pointer; }
+.card.selected { border-color: var(--warn); box-shadow: 0 0 0 2px var(--warn), 0 3px 7px rgba(0,0,0,.4); }
+/* colored band at the top communicates the card's bonus color; flat like print */
+.card .band { display: flex; align-items: center; gap: 4px; padding: 4px 7px; min-height: 28px; border-bottom: 1px solid rgba(0,0,0,.18); }
+.card .pts { font-size: 18px; font-weight: 800; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.55); }
+.card .pts.zero { opacity: .4; }
+.card .crowns { font-size: 15px; color: #ffd75e; letter-spacing: -2px; text-shadow: 0 1px 2px rgba(0,0,0,.55); }
+.card .bmarks { margin-left: auto; display: flex; }
+.bmark { width: 15px; height: 15px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 0 1.5px rgba(255,255,255,.55), 0 1px 2px rgba(0,0,0,.35); }
+.bmark + .bmark { margin-left: -7px; }
+.card .band.c-white .pts { color: #47423a; text-shadow: none; }
+.card .band.c-white .crowns { color: #b8860b; text-shadow: none; }
+.card .cardbody { display: flex; flex-direction: column; flex: 1; padding: 4px 7px 6px; }
+.card .ability { font-size: 10px; color: var(--dim); min-height: 14px; }
+.card .cost { margin-top: auto; display: flex; flex-wrap: nowrap; gap: 3px; }
+/* cost circles look like the physical tokens they represent */
+.cost .cc { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.7); box-shadow: 0 1px 3px rgba(0,0,0,.45), inset 0 1px 1px rgba(255,255,255,.28), inset 0 -2px 2px rgba(0,0,0,.2); flex-shrink: 0; position: relative; }
+/* on hover, show right on the card which cost you cannot cover yet and by how much */
+.card.short:hover .cc.lack { box-shadow: 0 0 0 2px #e0524a, 0 1px 3px rgba(0,0,0,.45), inset 0 1px 1px rgba(255,255,255,.28), inset 0 -2px 2px rgba(0,0,0,.2); }
+.card.short:hover .cc.have { opacity: 0.45; }
+.card.short:hover .cc.lack::after { content: attr(data-lack); position: absolute; top: -9px; right: -6px; background: #e0524a; color: #fff; font-size: 9px; font-weight: 700; line-height: 1; padding: 2px 3px; border-radius: 7px; text-shadow: none; }
+.needhint { position: absolute; left: 7px; right: 7px; bottom: 30px; font-size: 9px; color: #f0a49b; opacity: 0; transition: opacity .15s; pointer-events: none; display: flex; align-items: center; gap: 3px; }
+.card.short:hover .needhint { opacity: 1; }
+.needhint .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.scroll.mini { width: 8px; height: 12px; margin: 0 1px; }
+.scroll.mini::before, .scroll.mini::after { height: 3px; left: -1.5px; right: -1.5px; }
+.card.back { align-items: center; justify-content: center; background: repeating-linear-gradient(45deg, #26314e, #26314e 6px, #1e2740 6px, #1e2740 12px); color: var(--dim); font-weight: 700; }
+.card.mini { width: 76px; height: 88px; }
+.card.mini .band { min-height: 22px; padding: 2px 6px; }
+.card.mini .pts { font-size: 13px; }
+.card.mini .crowns { font-size: 12px; }
+.card.mini .bmarks .bmark { width: 11px; height: 11px; }
+.card.mini .bmarks .bmark + .bmark { margin-left: -5px; }
+.card.mini .cardbody { padding: 3px 5px 4px; }
+.card.mini .ability { font-size: 8px; min-height: 10px; }
+.card.mini .cost .cc { width: 14px; height: 14px; font-size: 9px; }
+.royal { width: 76px; height: 60px; border-radius: 8px; background: linear-gradient(160deg, #3a2f55, #251d3a); border: 1px solid transparent; padding: 6px 8px; position: relative; flex-shrink: 0; }
+.royal .pts { font-size: 15px; font-weight: 800; }
+.royal .ability { font-size: 10px; color: #b7a8dd; }
+.royal.selectable { cursor: pointer; border-color: var(--warn); box-shadow: 0 0 0 2px var(--warn); }
+.royal.taken { opacity: 0.18; }
+
+/* ---------- middle table ---------- */
+.tablerow { background: var(--panel); border-radius: 10px; padding: 10px; }
+.royalsrow { display: flex; align-items: center; gap: 10px; }
+.royalsrow .privpool { margin-left: auto; display: flex; gap: 5px; align-items: center; color: var(--dim); font-size: 12px; }
+.gamerow { display: flex; gap: 14px; }
+.pyramid { display: flex; flex-direction: column; gap: 8px; }
+.pyr-row { display: flex; gap: 6px; align-items: center; }
+.deck { width: 54px; height: 116px; border-radius: 8px; background: repeating-linear-gradient(45deg, #26314e, #26314e 6px, #1e2740 6px, #1e2740 12px); border: 1px solid transparent; box-shadow: 0 3px 8px rgba(0,0,0,.45); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--dim); font-weight: 700; flex-shrink: 0; }
+.deck.selectable { cursor: pointer; }
+.deck.selected { border-color: var(--warn); box-shadow: 0 0 0 2px var(--warn); }
+.deck .lvl { font-size: 11px; letter-spacing: 1px; }
+.deck .cnt { font-size: 15px; color: var(--text); }
+.boardwrap { display: flex; flex-direction: column; gap: 8px; }
+/* the token board is a physical object: frame + shadow are intentional */
+#board { display: grid; grid-template-columns: repeat(5, 52px); grid-auto-rows: 52px; gap: 6px; background: #141b2d; padding: 10px; border-radius: 10px; border: 1px solid var(--line); box-shadow: 0 4px 14px rgba(0,0,0,.45); width: max-content; }
+.cell { border-radius: 50%; border: 1px dashed #253052; position: relative; }
+.cell.filled { border: none; cursor: default; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.7); box-shadow: 0 3px 6px rgba(0,0,0,.5), inset 0 2px 2px rgba(255,255,255,.2), inset 0 -3px 4px rgba(0,0,0,.22); }
+.cell.pick { cursor: pointer; }
+.cell.pick:hover { box-shadow: 0 0 0 2px var(--accent); }
+.cell.sel { box-shadow: 0 0 0 3px var(--warn) !important; }
+.cell.hint { box-shadow: 0 0 0 2px rgba(91,156,245,.6); }
+.cell.dimmed { opacity: 0.35; }
+
+/* ---------- action bar: plain strip under the table, no plate ---------- */
+#actionbar { min-height: 38px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 2px 8px; }
+#actionbar .msg { color: var(--warn); font-weight: 600; }
+#actionbar .msg.info { color: var(--dim); font-weight: 400; }
+.colorbtn { width: 30px; height: 30px; border-radius: 50%; border: none; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,.5), inset 0 1px 1px rgba(255,255,255,.25); }
+.colorbtn:hover { box-shadow: 0 0 0 2px var(--accent), 0 2px 4px rgba(0,0,0,.5); }
+
+/* token color helpers */
+.c-white { background: var(--c-white); color: #333 !important; text-shadow: none !important; }
+.c-blue { background: var(--c-blue); }
+.c-green { background: var(--c-green); }
+.c-red { background: var(--c-red); }
+.c-black { background: var(--c-black); }
+.c-pearl { background: var(--c-pearl); }
+.c-gold { background: var(--c-gold); color: #4a3a05 !important; text-shadow: none !important; }
+.c-none { background: var(--c-none); }
+/* joker can only become one of the 5 gem colors - no gold, no pearl */
+.c-joker { background: conic-gradient(from 220deg,
+  var(--c-red), var(--c-blue), var(--c-green), var(--c-white), var(--c-black), var(--c-red)); }
+
+/* win overlay */
+#overlay { position: fixed; inset: 0; background: rgba(8, 11, 20, 0.82); display: flex; align-items: center; justify-content: center; z-index: 50; }
+#overlay .box { background: var(--panel); border: 1px solid var(--accent); border-radius: 14px; padding: 34px 48px; text-align: center; }
+#overlay h2 { margin-bottom: 8px; font-size: 26px; }
+#overlay p { color: var(--dim); margin-bottom: 18px; }
+#savearea { margin-bottom: 16px; display: flex; gap: 8px; justify-content: center; align-items: center; }
+#savearea input { background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; color: var(--text); font: inherit; width: 170px; }
+#savearea .saved { color: var(--ok); }
+.hidden { display: none !important; }
+
+/* leaderboard dialog */
+dialog { background: var(--panel); color: var(--text); border: none; border-radius: 12px; padding: 16px; min-width: 480px; max-width: 620px; margin: auto; }
+dialog::backdrop { background: rgba(8, 11, 20, 0.7); }
+.lb-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 20px; }
+.lb-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.lb-table th { text-align: left; color: var(--dim); font-weight: 500; padding: 4px 8px; }
+.lb-table td { padding: 5px 8px; }
+.lb-table tr:nth-child(even) td { background: rgba(255,255,255,.03); }
+.lb-table .pos { color: var(--dim); }
+
+</style>
+</head>
+<body>
+<header>
+  <h1>SPLENDOR DUEL</h1>
+  <select id="mode">
+    <option value="you-first">You vs AI — you start</option>
+    <option value="ai-first">You vs AI — AI starts</option>
+    <option value="hotseat">2 players (hotseat)</option>
+  </select>
+  <button id="new" data-action="new" class="primary">New game</button>
+  <button id="undo" data-action="undo">Undo</button>
+  <button data-action="leaderboard">Leaderboard</button>
+  <span class="spacer"></span>
+  <span class="goal">Win: 20 points &nbsp;|&nbsp; 10 crowns &nbsp;|&nbsp; 10 points in one color</span>
+</header>
+<div id="layout">
+  <div class="side">
+    <div id="side"></div>
+    <div id="logbox"></div>
+  </div>
+  <div class="mid" id="mid"></div>
+</div>
+<div id="overlay" class="hidden">
+  <div class="box">
+    <h2></h2>
+    <p></p>
+    <div id="savearea"></div>
+    <button data-action="new" class="primary">New game</button>
+    <button data-action="overlay-close">Close</button>
+  </div>
+</div>
+<dialog id="lbdialog">
+  <div class="lb-head">
+    <b>Leaderboard — wins vs AI</b>
+    <button data-action="lb-close">Close</button>
+  </div>
+  <div id="lbbody">Loading…</div>
+</dialog>
+<script>
+// Splendor Duel card data - verified against the official card list
+// (Splendor_Duel_Card_List-v3) and cross-checked with two independent sources.
+// C(id, level, bonusColor, bonusCount, points, crowns, ability, cost)
+// bonusColor: white|blue|green|red|black | 'joker' (copies a color) | 'none' (grey, no bonus)
+// ability: 'again' (extra turn) | 'token' (take 1 board token of card color)
+//          | 'steal' (take 1 token from opponent) | 'privilege' (take 1 privilege) | null
+function C(id, level, color, bonus, points, crowns, ability, cost) {
+  return { id, level, color, bonus, points, crowns, ability, cost };
+}
+
+const CARDS = [
+  C('1-01',1,'white',1,0,0,'token',{red:2,black:2}),
+  C('1-02',1,'white',1,0,0,null,{blue:1,green:1,red:1,black:1}),
+  C('1-03',1,'white',1,0,0,'again',{blue:2,green:2,pearl:1}),
+  C('1-04',1,'white',1,0,1,null,{blue:3}),
+  C('1-05',1,'white',1,1,0,null,{green:2,red:3}),
+  C('1-06',1,'blue',1,0,0,'again',{green:2,red:2,pearl:1}),
+  C('1-07',1,'blue',1,0,0,null,{white:1,green:1,red:1,black:1}),
+  C('1-08',1,'blue',1,0,0,'token',{white:2,black:2}),
+  C('1-09',1,'blue',1,0,1,null,{green:3}),
+  C('1-10',1,'blue',1,1,0,null,{red:2,black:3}),
+  C('1-11',1,'green',1,0,0,'again',{red:2,black:2,pearl:1}),
+  C('1-12',1,'green',1,0,0,null,{white:1,blue:1,red:1,black:1}),
+  C('1-13',1,'green',1,0,0,'token',{white:2,blue:2}),
+  C('1-14',1,'green',1,0,1,null,{red:3}),
+  C('1-15',1,'green',1,1,0,null,{white:3,black:2}),
+  C('1-16',1,'red',1,0,0,'token',{blue:2,green:2}),
+  C('1-17',1,'red',1,0,0,null,{white:1,blue:1,green:1,black:1}),
+  C('1-18',1,'red',1,0,0,'again',{white:2,black:2,pearl:1}),
+  C('1-19',1,'red',1,0,1,null,{black:3}),
+  C('1-20',1,'red',1,1,0,null,{white:2,blue:3}),
+  C('1-21',1,'black',1,0,0,'token',{green:2,red:2}),
+  C('1-22',1,'black',1,0,0,null,{white:1,blue:1,green:1,red:1}),
+  C('1-23',1,'black',1,0,0,'again',{white:2,blue:2,pearl:1}),
+  C('1-24',1,'black',1,0,1,null,{white:3}),
+  C('1-25',1,'black',1,1,0,null,{blue:2,green:3}),
+  C('1-26',1,'joker',1,0,1,null,{white:4,pearl:1}),
+  C('1-27',1,'joker',1,1,0,null,{black:4,pearl:1}),
+  C('1-28',1,'joker',1,1,0,null,{blue:2,red:2,black:1,pearl:1}),
+  C('1-29',1,'joker',1,1,0,null,{white:2,green:2,black:1,pearl:1}),
+  C('1-30',1,'none',0,3,0,null,{red:4,pearl:1}),
+  C('2-01',2,'white',1,1,0,'steal',{blue:4,red:3}),
+  C('2-02',2,'white',2,1,0,null,{blue:5,green:2}),
+  C('2-03',2,'white',1,2,0,'privilege',{white:4,black:2,pearl:1}),
+  C('2-04',2,'white',1,2,1,null,{green:2,red:2,black:2,pearl:1}),
+  C('2-05',2,'blue',1,1,0,'steal',{green:4,black:3}),
+  C('2-06',2,'blue',2,1,0,null,{green:5,red:2}),
+  C('2-07',2,'blue',1,2,0,'privilege',{white:2,blue:4,pearl:1}),
+  C('2-08',2,'blue',1,2,1,null,{white:2,red:2,black:2,pearl:1}),
+  C('2-09',2,'green',2,1,0,null,{red:5,black:2}),
+  C('2-10',2,'green',1,1,0,'steal',{white:3,red:4}),
+  C('2-11',2,'green',1,2,0,'privilege',{blue:2,green:4,pearl:1}),
+  C('2-12',2,'green',1,2,1,null,{white:2,blue:2,black:2,pearl:1}),
+  C('2-13',2,'red',1,1,0,'steal',{blue:3,black:4}),
+  C('2-14',2,'red',2,1,0,null,{white:2,black:5}),
+  C('2-15',2,'red',1,2,0,'privilege',{green:2,red:4,pearl:1}),
+  C('2-16',2,'red',1,2,1,null,{white:2,blue:2,green:2,pearl:1}),
+  C('2-17',2,'black',1,1,0,'steal',{white:4,green:3}),
+  C('2-18',2,'black',2,1,0,null,{white:5,blue:2}),
+  C('2-19',2,'black',1,2,0,'privilege',{red:2,black:4,pearl:1}),
+  C('2-20',2,'black',1,2,1,null,{blue:2,green:2,red:2,pearl:1}),
+  C('2-21',2,'joker',1,0,2,null,{green:6,pearl:1}),
+  C('2-22',2,'joker',1,0,2,null,{blue:6,pearl:1}),
+  C('2-23',2,'joker',1,2,0,null,{green:6,pearl:1}),
+  C('2-24',2,'none',0,5,0,null,{blue:6,pearl:1}),
+  C('3-01',3,'white',1,3,2,null,{blue:3,red:5,black:3,pearl:1}),
+  C('3-02',3,'white',1,4,0,null,{white:6,blue:2,black:2}),
+  C('3-03',3,'blue',1,3,2,null,{white:3,green:3,black:5,pearl:1}),
+  C('3-04',3,'blue',1,4,0,null,{white:2,blue:6,green:2}),
+  C('3-05',3,'green',1,3,2,null,{white:5,blue:3,red:3,pearl:1}),
+  C('3-06',3,'green',1,4,0,null,{blue:2,green:6,red:2}),
+  C('3-07',3,'red',1,3,2,null,{blue:5,green:3,black:3,pearl:1}),
+  C('3-08',3,'red',1,4,0,null,{green:2,red:6,black:2}),
+  C('3-09',3,'black',1,3,2,null,{white:3,green:5,red:3,pearl:1}),
+  C('3-10',3,'black',1,4,0,null,{white:2,red:2,black:6}),
+  C('3-11',3,'joker',1,0,3,null,{black:8}),
+  C('3-12',3,'joker',1,3,0,'again',{red:8}),
+  C('3-13',3,'none',0,6,0,null,{white:8})
+];
+
+const ROYALS = [
+  { id: 'R1', points: 2, ability: 'steal' },
+  { id: 'R2', points: 2, ability: 'privilege' },
+  { id: 'R3', points: 2, ability: 'again' },
+  { id: 'R4', points: 3, ability: null },
+];
+
+if (typeof module !== 'undefined') module.exports = { CARDS, ROYALS };
+
+</script>
+<script>
+// Splendor Duel game engine. Pure logic, no DOM. Works in browser and node.
+// State is a plain JSON-serializable object; applyMove returns a new state.
+
+(function () {
+  const CARDS_MOD = typeof module !== 'undefined' ? require('./cards.js') : { CARDS, ROYALS };
+  const ALL_CARDS = CARDS_MOD.CARDS;
+  const ALL_ROYALS = CARDS_MOD.ROYALS;
+  const CARD_BY_ID = {};
+  ALL_CARDS.forEach((c) => (CARD_BY_ID[c.id] = c));
+  const ROYAL_BY_ID = {};
+  ALL_ROYALS.forEach((r) => (ROYAL_BY_ID[r.id] = r));
+
+  const GEMS = ['white', 'blue', 'green', 'red', 'black'];
+  const TOKEN_TYPES = ['white', 'blue', 'green', 'red', 'black', 'pearl', 'gold'];
+  const SIZE = 5;
+
+  // Board refill order: center, then spiralling down -> left -> up -> right,
+  // matching the arrows printed on the official board.
+  const SPIRAL = (function () {
+    const coords = [[2, 2]];
+    let r = 2, c = 2, step = 1, dirIdx = 0;
+    const dirs = [[1, 0], [0, -1], [-1, 0], [0, 1]]; // down, left, up, right
+    while (coords.length < 25) {
+      for (let rep = 0; rep < 2 && coords.length < 25; rep++) {
+        const [dr, dc] = dirs[dirIdx % 4];
+        for (let s = 0; s < step && coords.length < 25; s++) {
+          r += dr; c += dc;
+          if (r >= 0 && r < SIZE && c >= 0 && c < SIZE) coords.push([r, c]);
+        }
+        dirIdx++;
+      }
+      step++;
+    }
+    return coords.map(([rr, cc]) => rr * SIZE + cc);
+  })();
+
+  // --- deterministic RNG (mulberry32) ---
+  function nextRand(state) {
+    state.rng = (state.rng + 0x6d2b79f5) | 0;
+    let t = state.rng;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+  function shuffle(state, arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(nextRand(state) * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  function emptyTokens() {
+    const t = {};
+    TOKEN_TYPES.forEach((c) => (t[c] = 0));
+    return t;
+  }
+
+  function newGame(opts) {
+    opts = opts || {};
+    const state = {
+      rng: (opts.seed === undefined ? Math.floor(Math.random() * 2 ** 31) : opts.seed) | 0,
+      board: new Array(25).fill(null),
+      bag: [],
+      decks: { 1: [], 2: [], 3: [] },
+      pyramid: { 1: [], 2: [], 3: [] },
+      privilegesPool: 3,
+      royals: ALL_ROYALS.map((r) => r.id),
+      players: [0, 1].map(() => ({
+        tokens: emptyTokens(),
+        cards: [], // {id, jokerColor?}
+        reserved: [], // {id, known} known=true if reserved from pyramid (opponent saw it)
+        privileges: 0,
+        royals: [],
+      })),
+      current: 0,
+      turn: { replenished: false, mandatoryDone: false },
+      pending: [], // queue of decisions: {t:'joker'|'steal'|'tokenBoard'|'royal'|'discard', ...}
+      extraTurn: false,
+      winner: null,
+      winReason: null,
+      turnCount: 1,
+      log: [],
+    };
+
+    // decks + pyramid (level 3 shows 3 cards, level 2 -> 4, level 1 -> 5)
+    for (const lv of [1, 2, 3]) {
+      state.decks[lv] = shuffle(state, ALL_CARDS.filter((c) => c.level === lv).map((c) => c.id));
+    }
+    const slots = { 1: 5, 2: 4, 3: 3 };
+    for (const lv of [1, 2, 3]) {
+      for (let i = 0; i < slots[lv]; i++) state.pyramid[lv].push(state.decks[lv].pop());
+    }
+
+    // bag: 4 of each gem, 2 pearls, 3 gold -> board via spiral
+    for (const g of GEMS) for (let i = 0; i < 4; i++) state.bag.push(g);
+    state.bag.push('pearl', 'pearl', 'gold', 'gold', 'gold');
+    shuffle(state, state.bag);
+    refillBoard(state);
+
+    // second player starts with 1 privilege
+    state.privilegesPool -= 1;
+    state.players[1].privileges = 1;
+    log(state, null, 'New game. Player 1 starts; Player 2 receives 1 privilege.');
+    return state;
+  }
+
+  function refillBoard(state) {
+    for (const idx of SPIRAL) {
+      if (state.bag.length === 0) break;
+      if (state.board[idx] === null) state.board[idx] = state.bag.shift();
+    }
+  }
+
+  function log(state, player, text) {
+    state.log.push({ player, text, turn: state.turnCount });
+  }
+
+  // --- derived helpers ---
+  function bonuses(player) {
+    const b = { white: 0, blue: 0, green: 0, red: 0, black: 0 };
+    for (const pc of player.cards) {
+      const card = CARD_BY_ID[pc.id];
+      const color = card.color === 'joker' ? pc.jokerColor : card.color;
+      if (color && b[color] !== undefined) b[color] += card.bonus;
+    }
+    return b;
+  }
+  function points(player) {
+    let p = 0;
+    for (const pc of player.cards) p += CARD_BY_ID[pc.id].points;
+    for (const rid of player.royals) p += ROYAL_BY_ID[rid].points;
+    return p;
+  }
+  function crowns(player) {
+    let n = 0;
+    for (const pc of player.cards) n += CARD_BY_ID[pc.id].crowns;
+    return n;
+  }
+  function colorPoints(player) {
+    // grey ('none') cards and royals never count toward the same-color condition
+    const cp = { white: 0, blue: 0, green: 0, red: 0, black: 0 };
+    for (const pc of player.cards) {
+      const card = CARD_BY_ID[pc.id];
+      const color = card.color === 'joker' ? pc.jokerColor : card.color;
+      if (color && cp[color] !== undefined) cp[color] += card.points;
+    }
+    return cp;
+  }
+  function tokenCount(player) {
+    return TOKEN_TYPES.reduce((s, c) => s + player.tokens[c], 0);
+  }
+
+  // cost after bonuses; returns {perColor:{}, totalShort} or payment plan
+  function paymentFor(state, player, card) {
+    // returns {pay: {color: n,..., gold: n}} or null if unaffordable.
+    const b = bonuses(player);
+    const pay = {};
+    let goldNeeded = 0;
+    for (const color of GEMS.concat(['pearl'])) {
+      const cost = card.cost[color] || 0;
+      const eff = Math.max(0, cost - (color === 'pearl' ? 0 : b[color]));
+      const own = player.tokens[color];
+      const fromTokens = Math.min(eff, own);
+      if (fromTokens > 0) pay[color] = fromTokens;
+      goldNeeded += eff - fromTokens;
+    }
+    if (goldNeeded > player.tokens.gold) return null;
+    if (goldNeeded > 0) pay.gold = goldNeeded;
+    return pay;
+  }
+
+  function canBuy(state, player, card) {
+    if (card.color === 'joker') {
+      // needs at least one owned bonus color to attach to
+      const b = bonuses(player);
+      if (!GEMS.some((c) => b[c] > 0)) return false;
+    }
+    return paymentFor(state, player, card) !== null;
+  }
+
+  // --- token line enumeration ---
+  const DIRS = [[0, 1], [1, 0], [1, 1], [1, -1]]; // →, ↓, ↘, ↙
+  function lineTakeOptions(state) {
+    const opts = [];
+    const ok = (idx) => state.board[idx] !== null && state.board[idx] !== 'gold';
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        const i0 = r * SIZE + c;
+        if (!ok(i0)) continue;
+        opts.push([i0]);
+        for (const [dr, dc] of DIRS) {
+          const r1 = r + dr, c1 = c + dc, r2 = r + 2 * dr, c2 = c + 2 * dc;
+          if (r1 >= 0 && r1 < SIZE && c1 >= 0 && c1 < SIZE) {
+            const i1 = r1 * SIZE + c1;
+            if (ok(i1)) {
+              opts.push([i0, i1]);
+              if (r2 >= 0 && r2 < SIZE && c2 >= 0 && c2 < SIZE) {
+                const i2 = r2 * SIZE + c2;
+                if (ok(i2)) opts.push([i0, i1, i2]);
+              }
+            }
+          }
+        }
+      }
+    }
+    return opts;
+  }
+
+  function validateTakeCells(state, cells) {
+    if (!Array.isArray(cells) || cells.length < 1 || cells.length > 3) return 'take 1-3 tokens';
+    const set = new Set(cells);
+    if (set.size !== cells.length) return 'duplicate cells';
+    for (const i of cells) {
+      if (i < 0 || i > 24 || state.board[i] === null) return 'empty cell';
+      if (state.board[i] === 'gold') return 'cannot take gold';
+    }
+    if (cells.length > 1) {
+      const pts = cells.map((i) => [Math.floor(i / SIZE), i % SIZE]).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+      const dr = pts[1][0] - pts[0][0], dc = pts[1][1] - pts[0][1];
+      if (Math.abs(dr) > 1 || Math.abs(dc) > 1 || (dr === 0 && dc === 0)) return 'tokens must be adjacent in a line';
+      for (let k = 1; k < pts.length; k++) {
+        if (pts[k][0] - pts[k - 1][0] !== dr || pts[k][1] - pts[k - 1][1] !== dc) return 'tokens must be adjacent in a line';
+      }
+    }
+    return null;
+  }
+
+  // --- privileges ---
+  function givePrivilege(state, playerIdx) {
+    const p = state.players[playerIdx];
+    if (p.privileges >= 3) return;
+    if (state.privilegesPool > 0) {
+      state.privilegesPool--;
+      p.privileges++;
+    } else {
+      const other = state.players[1 - playerIdx];
+      if (other.privileges > 0) {
+        other.privileges--;
+        p.privileges++;
+      }
+    }
+  }
+
+  // --- legal moves ---
+  function legalMoves(state) {
+    if (state.winner !== null) return [];
+    const moves = [];
+    const me = state.players[state.current];
+
+    if (state.pending.length > 0) {
+      const pd = state.pending[0];
+      if (pd.t === 'joker') {
+        const b = bonuses(me);
+        for (const c of GEMS) if (b[c] > 0) moves.push({ t: 'joker', color: c });
+      } else if (pd.t === 'steal') {
+        const opp = state.players[1 - state.current];
+        for (const c of GEMS.concat(['pearl'])) if (opp.tokens[c] > 0) moves.push({ t: 'steal', color: c });
+      } else if (pd.t === 'tokenBoard') {
+        for (let i = 0; i < 25; i++) if (state.board[i] === pd.color) moves.push({ t: 'tokenBoard', cell: i });
+      } else if (pd.t === 'royal') {
+        for (const rid of state.royals) moves.push({ t: 'royal', royal: rid });
+      } else if (pd.t === 'discard') {
+        // one token at a time (UI/AI applies repeatedly until at 10)
+        for (const c of TOKEN_TYPES) if (me.tokens[c] > 0) moves.push({ t: 'discard', color: c });
+      }
+      return moves;
+    }
+
+    // optional actions (before mandatory)
+    if (!state.turn.mandatoryDone) {
+      if (me.privileges > 0 && !state.turn.replenished) {
+        for (let i = 0; i < 25; i++) {
+          if (state.board[i] !== null && state.board[i] !== 'gold') moves.push({ t: 'privilege', cell: i });
+        }
+      }
+      if (state.bag.length > 0 && !state.turn.replenished) moves.push({ t: 'replenish' });
+
+      // mandatory: take tokens
+      for (const cells of lineTakeOptions(state)) moves.push({ t: 'take', cells });
+
+      // mandatory: gold + reserve
+      if (me.reserved.length < 3) {
+        const goldCells = [];
+        for (let i = 0; i < 25; i++) if (state.board[i] === 'gold') goldCells.push(i);
+        if (goldCells.length > 0) {
+          for (const gc of goldCells) {
+            for (const lv of [1, 2, 3]) {
+              state.pyramid[lv].forEach((cid, slot) => {
+                if (cid) moves.push({ t: 'reserve', gold: gc, level: lv, slot });
+              });
+              if (state.decks[lv].length > 0) moves.push({ t: 'reserve', gold: gc, level: lv, slot: 'deck' });
+            }
+          }
+        }
+      }
+
+      // mandatory: buy
+      for (const lv of [1, 2, 3]) {
+        state.pyramid[lv].forEach((cid, slot) => {
+          if (cid && canBuy(state, me, CARD_BY_ID[cid])) {
+            moves.push({ t: 'buy', card: cid, from: 'pyramid' });
+          }
+        });
+      }
+      me.reserved.forEach((rc) => {
+        if (canBuy(state, me, CARD_BY_ID[rc.id])) moves.push({ t: 'buy', card: rc.id, from: 'reserve' });
+      });
+
+      // no mandatory action possible: rules force a replenish first; if the bag
+      // is empty too (or we already replenished), the turn is passed
+      const anyMandatory = moves.some((m) => ['take', 'reserve', 'buy'].includes(m.t));
+      if (!anyMandatory && (state.bag.length === 0 || state.turn.replenished)) {
+        moves.push({ t: 'pass' });
+      }
+    }
+    return moves;
+  }
+
+  // does the player have any mandatory action available?
+  function hasMandatory(state) {
+    return legalMoves(state).some((m) => ['take', 'reserve', 'buy'].includes(m.t));
+  }
+
+  // --- apply move ---
+  function clone(state) {
+    return JSON.parse(JSON.stringify(state));
+  }
+
+  function applyMove(prev, move) {
+    const state = clone(prev);
+    const meIdx = state.current;
+    const me = state.players[meIdx];
+    const oppIdx = 1 - meIdx;
+    const pname = 'P' + (meIdx + 1);
+    const err = (m) => { throw new Error('Illegal move: ' + m + ' ' + JSON.stringify(move)); };
+
+    if (state.winner !== null) err('game over');
+
+    // ---- pending decisions ----
+    if (state.pending.length > 0) {
+      const pd = state.pending[0];
+      if (move.t !== pd.t) err('expected decision ' + pd.t);
+      state.pending.shift();
+      if (pd.t === 'joker') {
+        const b = bonuses(me);
+        if (!GEMS.includes(move.color) || b[move.color] === 0) err('bad joker color');
+        me.cards[pd.cardIndex].jokerColor = move.color;
+        log(state, meIdx, `${pname} assigns the joker card to ${move.color}.`);
+        afterCardGained(state, meIdx, me.cards[pd.cardIndex].id);
+      } else if (pd.t === 'steal') {
+        const opp = state.players[oppIdx];
+        if (move.color === 'gold' || !opp.tokens[move.color]) err('bad steal');
+        opp.tokens[move.color]--;
+        me.tokens[move.color]++;
+        log(state, meIdx, `${pname} steals a ${move.color} token.`);
+      } else if (pd.t === 'tokenBoard') {
+        if (state.board[move.cell] !== pd.color) err('bad board token');
+        state.board[move.cell] = null;
+        me.tokens[pd.color]++;
+        log(state, meIdx, `${pname} takes a ${pd.color} token (card ability).`);
+      } else if (pd.t === 'royal') {
+        if (!state.royals.includes(move.royal)) err('royal gone');
+        state.royals = state.royals.filter((r) => r !== move.royal);
+        me.royals.push(move.royal);
+        const royal = ROYAL_BY_ID[move.royal];
+        log(state, meIdx, `${pname} takes a Royal card (${royal.points} pts${royal.ability ? ', ' + royal.ability : ''}).`);
+        applyAbility(state, meIdx, royal.ability);
+      } else if (pd.t === 'discard') {
+        if (!me.tokens[move.color]) err('no token to discard');
+        me.tokens[move.color]--;
+        state.bag.push(move.color);
+        log(state, meIdx, `${pname} discards a ${move.color} token.`);
+        if (tokenCount(me) > 10) state.pending.unshift({ t: 'discard' });
+      }
+      finishIfResolved(state);
+      return state;
+    }
+
+    // ---- optional actions ----
+    if (move.t === 'privilege') {
+      if (me.privileges < 1) err('no privilege');
+      if (state.turn.replenished || state.turn.mandatoryDone) err('too late for privilege');
+      const tok = state.board[move.cell];
+      if (!tok || tok === 'gold') err('bad cell');
+      state.board[move.cell] = null;
+      me.tokens[tok]++;
+      me.privileges--;
+      state.privilegesPool++;
+      log(state, meIdx, `${pname} spends a privilege and takes a ${tok} token.`);
+      return state;
+    }
+    if (move.t === 'replenish') {
+      if (state.bag.length === 0) err('bag empty');
+      if (state.turn.replenished || state.turn.mandatoryDone) err('cannot replenish now');
+      shuffle(state, state.bag);
+      refillBoard(state);
+      state.turn.replenished = true;
+      givePrivilege(state, oppIdx);
+      log(state, meIdx, `${pname} replenishes the board; P${oppIdx + 1} gains a privilege.`);
+      return state;
+    }
+
+    // ---- mandatory actions ----
+    if (state.turn.mandatoryDone) err('mandatory action already done');
+
+    if (move.t === 'take') {
+      const v = validateTakeCells(state, move.cells);
+      if (v) err(v);
+      const taken = move.cells.map((i) => state.board[i]);
+      move.cells.forEach((i) => (state.board[i] = null));
+      taken.forEach((tok) => me.tokens[tok]++);
+      const sameThree = taken.length === 3 && taken.every((x) => x === taken[0]);
+      const twoPearls = taken.filter((x) => x === 'pearl').length >= 2;
+      log(state, meIdx, `${pname} takes ${taken.join(', ')}.`);
+      if (sameThree || twoPearls) {
+        givePrivilege(state, oppIdx);
+        log(state, meIdx, `P${oppIdx + 1} gains a privilege (${sameThree ? '3 identical' : '2 pearls'}).`);
+      }
+      state.turn.mandatoryDone = true;
+    } else if (move.t === 'reserve') {
+      if (me.reserved.length >= 3) err('reserve full');
+      if (state.board[move.gold] !== 'gold') err('no gold there');
+      state.board[move.gold] = null;
+      me.tokens.gold++;
+      let cardId, known;
+      if (move.slot === 'deck') {
+        if (state.decks[move.level].length === 0) err('deck empty');
+        cardId = state.decks[move.level].pop();
+        known = false;
+        log(state, meIdx, `${pname} takes a gold token and reserves a card from deck ${move.level}.`);
+      } else {
+        cardId = state.pyramid[move.level][move.slot];
+        if (!cardId) err('empty slot');
+        state.pyramid[move.level][move.slot] = state.decks[move.level].pop() || null;
+        known = true;
+        log(state, meIdx, `${pname} takes a gold token and reserves ${cardId} from the pyramid.`);
+      }
+      me.reserved.push({ id: cardId, known });
+      state.turn.mandatoryDone = true;
+    } else if (move.t === 'buy') {
+      const card = CARD_BY_ID[move.card];
+      if (!card) err('unknown card');
+      let source;
+      if (move.from === 'reserve') {
+        const ri = me.reserved.findIndex((rc) => rc.id === move.card);
+        if (ri < 0) err('not reserved');
+        source = () => me.reserved.splice(ri, 1);
+      } else {
+        const slot = state.pyramid[card.level].indexOf(move.card);
+        if (slot < 0) err('not in pyramid');
+        source = () => (state.pyramid[card.level][slot] = state.decks[card.level].pop() || null);
+      }
+      if (!canBuy(state, me, card)) err('cannot afford');
+      const pay = paymentFor(state, me, card);
+      for (const c of Object.keys(pay)) {
+        me.tokens[c] -= pay[c];
+        for (let i = 0; i < pay[c]; i++) state.bag.push(c);
+      }
+      source();
+      me.cards.push({ id: card.id });
+      const payStr = Object.keys(pay).map((c) => `${pay[c]} ${c}`).join(', ') || 'free';
+      log(state, meIdx, `${pname} buys ${card.id} (${payStr}).`);
+      state.turn.mandatoryDone = true;
+      if (card.color === 'joker') {
+        state.pending.push({ t: 'joker', cardIndex: me.cards.length - 1 });
+      } else {
+        afterCardGained(state, meIdx, card.id);
+      }
+    } else if (move.t === 'pass') {
+      if (hasMandatory(state)) err('mandatory actions available');
+      if (state.bag.length > 0 && !state.turn.replenished) err('must replenish first');
+      log(state, meIdx, `${pname} cannot act and passes.`);
+      state.turn.mandatoryDone = true;
+    } else {
+      err('unknown move type');
+    }
+
+    finishIfResolved(state);
+    return state;
+  }
+
+  // card ability + crowns handling, called once joker color is known
+  function afterCardGained(state, meIdx, cardId) {
+    const card = CARD_BY_ID[cardId];
+    const crownsBefore = crowns(state.players[meIdx]) - card.crowns;
+    applyAbility(state, meIdx, card.ability, card);
+    // royal at 3rd and 6th crown
+    const after = crownsBefore + card.crowns;
+    for (const threshold of [3, 6]) {
+      if (crownsBefore < threshold && after >= threshold && state.royals.length > 0) {
+        state.pending.push({ t: 'royal' });
+      }
+    }
+  }
+
+  function applyAbility(state, meIdx, ability, card) {
+    const me = state.players[meIdx];
+    const opp = state.players[1 - meIdx];
+    if (!ability) return;
+    if (ability === 'again') {
+      state.extraTurn = true;
+      log(state, meIdx, `P${meIdx + 1} will take another turn.`);
+    } else if (ability === 'privilege') {
+      givePrivilege(state, meIdx);
+      log(state, meIdx, `P${meIdx + 1} gains a privilege (ability).`);
+    } else if (ability === 'steal') {
+      if (GEMS.concat(['pearl']).some((c) => opp.tokens[c] > 0)) {
+        state.pending.push({ t: 'steal' });
+      }
+    } else if (ability === 'token') {
+      const color = card.color;
+      if (state.board.some((tok) => tok === color)) {
+        state.pending.push({ t: 'tokenBoard', color });
+      }
+    }
+  }
+
+  // resolve auto-decisions, end-of-turn bookkeeping
+  function finishIfResolved(state) {
+    // auto-resolve pendings with 0 or 1 option
+    while (state.pending.length > 0) {
+      const opts = legalMoves(state);
+      if (opts.length === 0) {
+        state.pending.shift(); // nothing to choose (e.g. royals gone)
+        continue;
+      }
+      if (opts.length === 1 && state.pending[0].t !== 'discard') {
+        return finishIfResolvedApply(state, opts[0]);
+      }
+      return; // waiting for a decision
+    }
+    if (!state.turn.mandatoryDone) return; // still in optional phase
+
+    const meIdx = state.current;
+    const me = state.players[meIdx];
+    if (tokenCount(me) > 10) {
+      state.pending.push({ t: 'discard' });
+      return;
+    }
+
+    // win check (end of turn)
+    const pts = points(me);
+    const cr = crowns(me);
+    const cp = colorPoints(me);
+    const bestColor = Math.max(...GEMS.map((c) => cp[c]));
+    if (pts >= 20) {
+      state.winner = meIdx;
+      state.winReason = `${pts} prestige points`;
+    } else if (cr >= 10) {
+      state.winner = meIdx;
+      state.winReason = `${cr} crowns`;
+    } else if (bestColor >= 10) {
+      state.winner = meIdx;
+      state.winReason = `${bestColor} points in one color`;
+    }
+    if (state.winner !== null) {
+      log(state, meIdx, `P${meIdx + 1} wins: ${state.winReason}!`);
+      return;
+    }
+
+    // next turn
+    state.turn = { replenished: false, mandatoryDone: false };
+    if (state.extraTurn) {
+      state.extraTurn = false;
+      log(state, meIdx, `P${meIdx + 1} takes another turn.`);
+    } else {
+      state.current = 1 - meIdx;
+    }
+    state.turnCount++;
+  }
+
+  function finishIfResolvedApply(state, move) {
+    // apply a forced move in-place (mirrors applyMove but without cloning)
+    const next = applyMove(state, move);
+    Object.keys(state).forEach((k) => delete state[k]);
+    Object.assign(state, next);
+  }
+
+  const Engine = {
+    GEMS, TOKEN_TYPES, SPIRAL, SIZE,
+    CARDS: ALL_CARDS, ROYALS: ALL_ROYALS, CARD_BY_ID, ROYAL_BY_ID,
+    newGame, legalMoves, applyMove, clone,
+    bonuses, points, crowns, colorPoints, tokenCount, paymentFor, canBuy,
+    validateTakeCells, lineTakeOptions, hasMandatory, shuffle, nextRand,
+  };
+
+  if (typeof module !== 'undefined') module.exports = Engine;
+  else window.Engine = Engine;
+})();
+
+</script>
+<script>
+// Heuristic AI with a 2-ply search (own full turn + opponent's best reply).
+// It never peeks at hidden information: unknown reserved cards are ignored,
+// simulated deck refills are hidden, and simulated shuffles use a decoupled RNG.
+
+(function () {
+  const E = typeof module !== 'undefined' ? require('./engine.js') : window.Engine;
+  const GEMS = E.GEMS;
+
+  // ---------- evaluation ----------
+  function playerScore(state, idx, viewerIdx) {
+    const p = state.players[idx];
+    const pts = E.points(p);
+    const cr = E.crowns(p);
+    const cp = E.colorPoints(p);
+    const b = E.bonuses(p);
+    let score = 0;
+
+    score += pts * 100;
+    score += Math.min(cr, 10) * 55;
+    // closing in on thresholds is superlinear
+    if (pts >= 15) score += (pts - 14) * 40;
+    if (cr >= 7) score += (cr - 6) * 45;
+    const bestColor = Math.max(...GEMS.map((c) => cp[c]));
+    score += bestColor * 28;
+    if (bestColor >= 7) score += (bestColor - 6) * 45;
+
+    // economy: bonuses make future cards cheaper (diminishing returns)
+    let btotal = 0;
+    for (const c of GEMS) btotal += Math.min(b[c], 4);
+    score += btotal * 26;
+
+    // tokens: purchasing power, mild (they get spent)
+    score += (p.tokens.white + p.tokens.blue + p.tokens.green + p.tokens.red + p.tokens.black) * 7;
+    score += p.tokens.pearl * 11;
+    score += p.tokens.gold * 13;
+
+    score += p.privileges * 9;
+
+    // reserved cards are latent value; hidden opponent reserves are unknown
+    for (const rc of p.reserved) {
+      const card = E.CARD_BY_ID[rc.id];
+      if (rc.known || idx === viewerIdx) score += card.points * 6 + card.crowns * 5 + 4;
+      else score += 4;
+    }
+    return score;
+  }
+
+  function evaluate(state, myIdx) {
+    if (state.winner === myIdx) return 1e9 - state.turnCount * 1000; // prefer faster wins
+    if (state.winner === 1 - myIdx) return -1e9 + state.turnCount * 1000;
+    return playerScore(state, myIdx, myIdx) - playerScore(state, 1 - myIdx, myIdx) * 1.05;
+  }
+
+  // ---------- decision policy for pending choices ----------
+  // Applies pending decisions (joker color, steal, royal, discard, board token)
+  // greedily by 0-ply evaluation.
+  function resolvePendings(state, myIdx) {
+    let guard = 0;
+    while (state.winner === null && state.pending.length > 0 && guard++ < 40) {
+      const moves = E.legalMoves(state);
+      if (moves.length === 0) break;
+      let best = null, bestScore = -Infinity;
+      const perspective = state.current; // decisions are made by the player to move
+      for (const mv of moves) {
+        const s2 = E.applyMove(state, mv);
+        const sc = evaluate(s2, perspective);
+        if (sc > bestScore) { bestScore = sc; best = s2; }
+      }
+      state = best;
+    }
+    return state;
+  }
+
+  // decouple simulation randomness from the real game RNG so the AI cannot
+  // "foresee" real shuffle outcomes
+  function searchClone(state) {
+    const s = E.clone(state);
+    s.rng = (s.rng * 31 + 17) | 0;
+    return s;
+  }
+
+  // hide information the AI should not see: replace unknown opponent reserved
+  // cards and deck contents with placeholders (decks keep only their sizes).
+  function sanitize(state, myIdx) {
+    const s = E.clone(state);
+    // NOTE: deck order stays but AI never inspects it directly; reshuffling here
+    // with a derived rng prevents indirect peeking via simulated draws.
+    for (const lv of [1, 2, 3]) E.shuffle(s, s.decks[lv]);
+    return s;
+  }
+
+  function applyFullMove(state, mv, actorIdx) {
+    // apply a move then greedily resolve any pending decisions of that actor
+    let s = E.applyMove(state, mv);
+    s = resolvePendings(s, actorIdx);
+    return s;
+  }
+
+  // enumerate turn plans: single moves, plus privilege-enabled buys
+  function candidatePlans(state) {
+    const me = state.players[state.current];
+    const moves = E.legalMoves(state);
+    const plans = moves.filter((m) => m.t !== 'privilege').map((m) => [m]);
+
+    // privilege combos: spend 1..n privileges to grab tokens enabling a buy,
+    // or simply grab the most contested token then act
+    if (me.privileges > 0 && state.pending.length === 0 && !state.turn.mandatoryDone) {
+      const tokensOnBoard = {};
+      state.board.forEach((tok, i) => {
+        if (tok && tok !== 'gold') (tokensOnBoard[tok] = tokensOnBoard[tok] || []).push(i);
+      });
+      // try: privilege-take one token of each color, then best of (take/buy) as single follow-up
+      for (const color of Object.keys(tokensOnBoard)) {
+        plans.push([{ t: 'privilege', cell: tokensOnBoard[color][0] }, '*mandatory*']);
+      }
+    }
+    return plans;
+  }
+
+  function expandPlan(state, plan, actorIdx) {
+    // returns resulting state or null if illegal
+    let s = state;
+    for (const step of plan) {
+      if (step === '*mandatory*') {
+        // choose best mandatory follow-up greedily
+        const moves = E.legalMoves(s).filter((m) => ['take', 'reserve', 'buy', 'replenish', 'pass'].includes(m.t));
+        if (moves.length === 0) return null;
+        let best = null, bestScore = -Infinity;
+        for (const mv of moves) {
+          const s2 = applyFullMove(s, mv, actorIdx);
+          const sc = evaluate(s2, actorIdx);
+          if (sc > bestScore) { bestScore = sc; best = s2; }
+        }
+        s = best;
+      } else {
+        try {
+          s = applyFullMove(s, step, actorIdx);
+        } catch (e) {
+          return null;
+        }
+      }
+    }
+    return s;
+  }
+
+  // best reply score for player `idx` (greedy, 1 ply)
+  function bestReplyScore(state, idx) {
+    if (state.winner !== null) return evaluate(state, idx);
+    if (state.current !== idx) return evaluate(state, idx); // extra turn for other player
+    const moves = E.legalMoves(state);
+    // dedupe cheap variants for speed: takes by token multiset, reserves by target
+    const seen = new Set();
+    const scored = [];
+    for (const mv of moves) {
+      let key = null;
+      if (mv.t === 'take') key = 'T' + mv.cells.map((i) => state.board[i]).sort().join(',');
+      else if (mv.t === 'reserve') key = 'R' + mv.level + ':' + mv.slot;
+      if (key) {
+        if (seen.has(key)) continue;
+        seen.add(key);
+      }
+      scored.push(mv);
+    }
+    let best = -Infinity;
+    for (const mv of scored) {
+      let s2;
+      try { s2 = applyFullMove(state, mv, idx); } catch (e) { continue; }
+      const sc = evaluate(s2, idx);
+      if (sc > best) best = sc;
+      if (best >= 1e8) break; // found a win
+    }
+    return best === -Infinity ? evaluate(state, idx) : best;
+  }
+
+  // ---------- main entry ----------
+  // Returns the next single move for the current player.
+  function chooseMove(state, opts) {
+    opts = opts || {};
+    const myIdx = state.current;
+
+    // pending decision: resolve greedily by evaluation
+    if (state.pending.length > 0) {
+      const moves = E.legalMoves(state);
+      let best = null, bestScore = -Infinity;
+      for (const mv of moves) {
+        const s2 = E.applyMove(searchClone(state), mv);
+        const sc = evaluate(s2, myIdx);
+        if (sc > bestScore) { bestScore = sc; best = mv; }
+      }
+      return best;
+    }
+
+    const base = sanitize(searchClone(state), myIdx);
+    const plans = candidatePlans(base);
+
+    // stage 1: static evaluation of each plan outcome
+    const evaluated = [];
+    for (const plan of plans) {
+      const s2 = expandPlan(base, plan, myIdx);
+      if (!s2) continue;
+      const sc = evaluate(s2, myIdx);
+      evaluated.push({ plan, state: s2, score: sc });
+    }
+    if (evaluated.length === 0) {
+      const fallback = E.legalMoves(state);
+      return fallback[0] || null;
+    }
+
+    // immediate win?
+    const winNow = evaluated.find((e) => e.state.winner === myIdx);
+    if (winNow) return winNow.plan[0] === '*mandatory*' ? null : winNow.plan[0];
+
+    // stage 2: opponent best reply for the top plans
+    evaluated.sort((a, b) => b.score - a.score);
+    const beam = evaluated.slice(0, opts.beam || 14);
+    for (const e of beam) {
+      const oppScore = bestReplyScore(e.state, 1 - myIdx); // opponent's eval
+      // our final = our static minus opponent's achievable advantage
+      e.final = evaluate(e.state, myIdx) - 0.9 * (oppScore - evaluate(e.state, 1 - myIdx));
+    }
+    beam.sort((a, b) => b.final - a.final);
+    return beam[0].plan[0];
+  }
+
+  const AI = { chooseMove, evaluate };
+  if (typeof module !== 'undefined') module.exports = AI;
+  else window.AI = AI;
+})();
+
+</script>
+<script>
+// UI controller: rendering + interaction. English UI, schematic look.
+(function () {
+  const E = window.Engine;
+  const AI = window.AI;
+  const GEMS = E.GEMS;
+  const COST_ORDER = ['white', 'blue', 'green', 'red', 'black', 'pearl'];
+
+  let game = null;
+  let mode = 'you-first'; // 'you-first' | 'ai-first' | 'hotseat'
+  let humanIdx = 0;       // index of the human in vs-AI modes
+  let history = [];       // undo snapshots (JSON strings)
+  let busy = false;       // AI is playing
+  let scoreSaved = false; // result of the current game already sent to the leaderboard
+  // transient interaction state
+  let sel = [];           // selected board cells for a take
+  let privMode = false;
+  let cardSel = null;     // {kind:'pyr',level,slot,id} | {kind:'deck',level} | {kind:'res',id}
+  let goldFor = null;     // cardSel awaiting a gold cell click
+
+  const $ = (s) => document.querySelector(s);
+
+  const ABILITY_TEXT = {
+    again: '↻ extra turn',
+    token: '+1 matching token',
+    steal: 'steal 1 token',
+    privilege: '+1 privilege',
+  };
+  const ABILITY_TITLE = {
+    again: 'Take another turn after this one',
+    token: 'Take 1 board token matching this card color',
+    steal: 'Take 1 non-gold token from your opponent',
+    privilege: 'Take 1 privilege',
+  };
+
+  function isHuman(idx) { return mode === 'hotseat' || idx === humanIdx; }
+  function nameOf(idx) {
+    if (mode === 'hotseat') return 'Player ' + (idx + 1);
+    return idx === humanIdx ? 'You' : 'AI';
+  }
+  function viewerIdx() { return mode === 'hotseat' ? game.current : humanIdx; }
+
+  function newGame() {
+    mode = $('#mode').value;
+    humanIdx = mode === 'ai-first' ? 1 : 0;
+    game = E.newGame({});
+    history = [];
+    scoreSaved = false;
+    resetTransient();
+    render();
+    maybeRunAI();
+  }
+
+  // ---------- leaderboard (shared Firebase DB, same approach as rose-lilly) ----------
+  const FIREBASE_URL = 'https://rose-lilly-default-rtdb.firebaseio.com/splendor-duel';
+  const NAME_KEY = 'splendor-duel-last-name';
+
+  function getLastName() {
+    try { return localStorage.getItem(NAME_KEY) || ''; } catch { return ''; }
+  }
+  function setLastName(name) {
+    try { localStorage.setItem(NAME_KEY, name); } catch { /* unavailable */ }
+  }
+
+  async function loadLeaderboard() {
+    try {
+      const response = await fetch(`${FIREBASE_URL}.json`);
+      if (!response.ok) throw new Error('fetch failed');
+      const data = await response.json();
+      if (!data) return [];
+      return Object.values(data).sort((a, b) => a.rounds - b.rounds || b.points - a.points);
+    } catch {
+      return [];
+    }
+  }
+
+  async function addLeaderboardEntry(entry) {
+    setLastName(entry.name);
+    try {
+      const response = await fetch(`${FIREBASE_URL}.json`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(entry),
+      });
+      if (!response.ok) throw new Error('save failed');
+    } catch {
+      // Firebase unavailable — entry lost, but game continues
+    }
+  }
+
+  async function renderLeaderboard() {
+    const body = $('#lbbody');
+    body.textContent = 'Loading…';
+    const entries = await loadLeaderboard();
+    if (entries.length === 0) {
+      body.textContent = 'No wins yet. Be the first to beat the AI!';
+      return;
+    }
+    const rows = entries.map((e, i) => `<tr>
+      <td class="pos">${i + 1}</td>
+      <td>${String(e.name).slice(0, 24).replace(/[<>&]/g, '')}</td>
+      <td>${e.rounds} round${e.rounds === 1 ? '' : 's'}</td>
+      <td>${String(e.reason || '').replace(/[<>&]/g, '')}</td>
+      <td>${e.points}–${e.aiPoints}</td>
+      <td class="pos">${e.date || ''}</td>
+    </tr>`).join('');
+    body.innerHTML = `<table class="lb-table">
+      <tr><th>#</th><th>Name</th><th>Speed</th><th>Victory</th><th>Score</th><th>Date</th></tr>
+      ${rows}
+    </table>`;
+  }
+
+  async function saveScore() {
+    const input = $('#pname');
+    const name = (input && input.value.trim()) || 'Anonymous';
+    if (scoreSaved || !game || game.winner === null) return;
+    scoreSaved = true;
+    const me = game.players[game.winner];
+    const opp = game.players[1 - game.winner];
+    await addLeaderboardEntry({
+      name,
+      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      rounds: Math.ceil(game.turnCount / 2),
+      reason: game.winReason,
+      points: E.points(me),
+      aiPoints: E.points(opp),
+    });
+    render();
+    $('#lbdialog').showModal();
+    renderLeaderboard();
+  }
+
+  function resetTransient() {
+    sel = [];
+    privMode = false;
+    cardSel = null;
+    goldFor = null;
+  }
+
+  function applyHuman(move) {
+    if (busy || game.winner !== null) return;
+    try {
+      history.push(JSON.stringify(game));
+      if (history.length > 400) history.shift();
+      game = E.applyMove(game, move);
+    } catch (e) {
+      history.pop();
+      console.error(e);
+      flash(e.message);
+      return;
+    }
+    resetTransient();
+    render();
+    maybeRunAI();
+  }
+
+  function undo() {
+    if (busy || history.length === 0) return;
+    game = JSON.parse(history.pop());
+    resetTransient();
+    render();
+  }
+
+  function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+  async function maybeRunAI() {
+    if (mode === 'hotseat') return;
+    if (busy) return;
+    busy = true;
+    render();
+    while (game.winner === null && !isHuman(game.current)) {
+      await sleep(350);
+      const mv = AI.chooseMove(game);
+      if (!mv) break;
+      game = E.applyMove(game, mv);
+      render();
+      await sleep(300);
+    }
+    busy = false;
+    render();
+  }
+
+  function flash(msg) {
+    const el = $('#actionbar .msg');
+    if (el) el.textContent = msg;
+  }
+
+  // ---------- rendering ----------
+  function tokTitle(t) { return t[0].toUpperCase() + t.slice(1); }
+
+  // what the viewing player is missing to buy this card (null = affordable)
+  function affordInfo(card) {
+    if (!game) return null;
+    const viewer = game.players[viewerIdx()];
+    const b = E.bonuses(viewer);
+    const lackByColor = {};
+    let lackTotal = 0;
+    for (const c of COST_ORDER) {
+      const eff = Math.max(0, (card.cost[c] || 0) - (c === 'pearl' ? 0 : b[c]));
+      const lack = Math.max(0, eff - viewer.tokens[c]);
+      if (lack > 0) { lackByColor[c] = lack; lackTotal += lack; }
+    }
+    const gold = viewer.tokens.gold;
+    if (lackTotal <= gold) return null; // gold covers the gap
+    return { lackByColor, short: lackTotal - gold, gold, privileges: viewer.privileges };
+  }
+
+  function cardHTML(card, cls, attrs, jokerColor) {
+    const info = affordInfo(card);
+    const costChips = COST_ORDER
+      .filter((c) => card.cost[c])
+      .map((c) => {
+        const lack = info && info.lackByColor[c];
+        const state = lack ? 'lack' : 'have';
+        const hint = lack ? ` — missing ${lack}` : '';
+        return `<span class="cc c-${c} ${state}" ${lack ? `data-lack="-${lack}"` : ''} title="${card.cost[c]} ${c}${hint}">${card.cost[c]}</span>`;
+      })
+      .join('');
+    let needHint = '';
+    if (info) {
+      const parts = [`short ${info.short}`];
+      if (info.gold) parts.push(`<span class="dot c-gold"></span>${info.gold}`);
+      if (info.privileges) parts.push(`<span class="scroll mini"></span>${info.privileges}`);
+      needHint = `<div class="needhint" title="Tokens still missing after bonuses and gold; gold and privileges can help">${parts.join('<span style="opacity:.5">·</span>')}</div>`;
+    }
+    const crowns = card.crowns ? `<span class="crowns">${'♛'.repeat(card.crowns)}</span>` : '';
+    const pts = `<span class="pts${card.points ? '' : ' zero'}">${card.points}</span>`;
+    const bonusColor = card.color === 'joker' && jokerColor ? jokerColor : card.color;
+    const bonusTitle = card.color === 'joker'
+      ? (jokerColor ? `Joker bonus assigned to ${jokerColor}` : 'Joker: copies one of your bonus colors')
+      : card.color === 'none' ? 'No bonus (grey card)' : `Bonus: ${card.color}`;
+    const markColor = card.color === 'joker' && !jokerColor ? 'joker' : bonusColor;
+    const marks = card.color === 'none' ? '' :
+      `<span class="bmarks" title="${bonusTitle}">${`<span class="bmark c-${markColor}"></span>`.repeat(card.bonus || 1)}</span>`;
+    const ability = card.ability
+      ? `<div class="ability" title="${ABILITY_TITLE[card.ability]}">${ABILITY_TEXT[card.ability]}</div>`
+      : '<div class="ability"></div>';
+    return `<div class="card ${cls || ''} ${info ? 'short' : ''}" ${attrs || ''} title="Level ${card.level} card ${card.id} — ${bonusTitle}">
+      <div class="band c-${bonusColor}">${pts}${crowns}${marks}</div>
+      <div class="cardbody">
+        ${ability}
+        <div class="cost">${costChips}</div>
+      </div>
+      ${needHint}
+    </div>`;
+  }
+
+  function renderPanel(idx) {
+    const p = game.players[idx];
+    const active = game.current === idx && game.winner === null;
+    const b = E.bonuses(p);
+    const cp = E.colorPoints(p);
+    const pts = E.points(p);
+    const cr = E.crowns(p);
+    const viewer = viewerIdx();
+    const discarding = active && isHuman(idx) && game.pending.length > 0 && game.pending[0].t === 'discard';
+
+    // column-reverse containers: first child = bottom of the pile; explicit
+    // z-index makes upper elements reliably paint above lower ones.
+    // No numbers: the pile height itself shows the count, like the real game.
+    const stackBars = (n, c) => {
+      if (!n) return '<span class="bar empty"></span>';
+      let bars = '';
+      for (let i = 0; i < Math.min(n, 9); i++) {
+        bars += `<span class="bar c-${c}" style="z-index:${i + 1}"></span>`;
+      }
+      return bars;
+    };
+    const pile = (n, c, clickable) => {
+      const attrs = clickable ? `data-action="discard" data-color="${c}"` : '';
+      if (!n) return `<div class="pile" title="0 ${c} tokens"><span class="coin empty"></span></div>`;
+      let coins = '';
+      for (let i = 0; i < Math.min(n, 4); i++) {
+        coins += `<span class="coin c-${c}" style="z-index:${i + 1}"></span>`;
+      }
+      return `<div class="pile ${clickable ? 'clickable' : ''}" ${attrs} title="${n} ${c} token(s)${clickable ? ' — click to discard one' : ''}">${coins}</div>`;
+    };
+    const cols = GEMS.map((c) => `
+      <div>
+        <div class="stackwrap" title="${b[c]} ${c} bonus(es) — each makes ${c} cards 1 cheaper">${stackBars(b[c], c)}</div>
+        ${pile(p.tokens[c], c, discarding && p.tokens[c] > 0)}
+        <div class="cbadge" title="prestige on ${c} cards (10 in one color wins)">${cp[c] ? '★' + cp[c] : ''}</div>
+      </div>`).join('');
+    const extraCols = ['pearl', 'gold'].map((c) => `
+      <div>
+        <div class="stackwrap"></div>
+        ${pile(p.tokens[c], c, discarding && p.tokens[c] > 0)}
+        <div class="cbadge"></div>
+      </div>`).join('');
+
+    const reserved = p.reserved.map((rc) => {
+      const card = E.CARD_BY_ID[rc.id];
+      const visible = rc.known || idx === viewer;
+      if (!visible) return `<div class="card mini back">?</div>`;
+      const mine = active && isHuman(idx) && game.pending.length === 0 && !busy;
+      const buyable = mine && E.canBuy(game, p, card);
+      const selCls = cardSel && cardSel.kind === 'res' && cardSel.id === rc.id ? 'selected' : '';
+      return cardHTML(card, `mini ${buyable ? 'buyable' : ''} selectable ${selCls}`,
+        `data-action="rescard" data-id="${rc.id}" data-owner="${idx}"`);
+    }).join('');
+
+    const royalsOwned = p.royals.map((rid) => {
+      const r = E.ROYAL_BY_ID[rid];
+      return `<div class="royal" title="Royal card"><div class="pts star">★${r.points}</div><div class="ability">${r.ability ? ABILITY_TEXT[r.ability] : ''}</div></div>`;
+    }).join('');
+
+    const canUsePriv = active && isHuman(idx) && !busy && game.winner === null &&
+      game.pending.length === 0 && p.privileges > 0 && !game.turn.replenished && !game.turn.mandatoryDone &&
+      game.board.some((t) => t && t !== 'gold');
+
+    return `<div class="panel ${active ? 'active' : ''}">
+      <div class="head">
+        <span class="name">${nameOf(idx)} <span style="color:var(--dim);font-weight:400">(P${idx + 1})</span></span>
+        <span class="score">
+          <span class="star" title="prestige points">★ ${pts}</span>
+          <span title="crowns">♛ ${cr}</span>
+          <span title="privileges">${'<span class="scroll"></span>'.repeat(p.privileges)}</span>
+        </span>
+      </div>
+      <div class="colorgrid">${cols}${extraCols}</div>
+      <div class="privrow">
+        ${canUsePriv ? `<button data-action="use-priv" ${privMode ? 'class="primary"' : ''}>${privMode ? 'Click a token…' : 'Use privilege'}</button>` : ''}
+      </div>
+      <div class="reserved">${reserved}${royalsOwned}</div>
+    </div>`;
+  }
+
+  function renderRoyals() {
+    const humanTurn = isHuman(game.current) && !busy;
+    const choosing = humanTurn && game.pending.length > 0 && game.pending[0].t === 'royal';
+    const cards = E.ROYALS.map((r) => {
+      const avail = game.royals.includes(r.id);
+      const cls = !avail ? 'taken' : choosing ? 'selectable' : '';
+      const attr = avail && choosing ? `data-action="royal" data-id="${r.id}"` : '';
+      return `<div class="royal ${cls}" ${attr} title="Royal card: ${r.points} prestige points${r.ability ? ', ' + ABILITY_TEXT[r.ability] : ''}. Take one when you reach your 3rd and 6th crown.">
+        <div class="pts star">★${r.points}</div>
+        <div class="ability">${r.ability ? ABILITY_TEXT[r.ability] : ''}</div>
+      </div>`;
+    }).join('');
+    const pool = '<span class="scroll pool"></span>'.repeat(game.privilegesPool);
+    return `<div class="tablerow royalsrow">
+      <span style="color:var(--dim);font-size:12px">ROYALS<br><span style="font-size:10px">at 3♛ &amp; 6♛</span></span>${cards}
+      <div class="privpool">PRIVILEGES ${pool || '<span style="opacity:.4">none</span>'}</div>
+    </div>`;
+  }
+
+  function renderPyramid() {
+    const me = game.players[game.current];
+    const humanTurn = isHuman(game.current) && !busy && game.winner === null;
+    const canAct = humanTurn && game.pending.length === 0 && !game.turn.mandatoryDone;
+    const rows = [3, 2, 1].map((lv) => {
+      const deckCnt = game.decks[lv].length;
+      const deckSel = cardSel && cardSel.kind === 'deck' && cardSel.level === lv ? 'selected' : '';
+      const deckClickable = canAct && deckCnt > 0 && me.reserved.length < 3 && game.board.includes('gold');
+      const deck = `<div class="deck ${deckClickable ? 'selectable' : ''} ${deckSel}"
+        ${deckClickable ? `data-action="deck" data-level="${lv}"` : ''}
+        title="Level ${lv} deck: ${deckCnt} cards${deckClickable ? ' — click to reserve the top card' : ''}">
+        <span class="lvl">${'●'.repeat(lv)}</span><span class="cnt">${deckCnt}</span>
+      </div>`;
+      const slots = game.pyramid[lv].map((cid, slot) => {
+        if (!cid) return `<div class="card" style="opacity:.15"></div>`;
+        const card = E.CARD_BY_ID[cid];
+        const buyable = canAct && E.canBuy(game, me, card);
+        const selCls = cardSel && cardSel.kind === 'pyr' && cardSel.id === cid ? 'selected' : '';
+        return cardHTML(card, `${buyable ? 'buyable' : ''} ${canAct ? 'selectable' : ''} ${selCls}`,
+          `data-action="pyrcard" data-id="${cid}" data-level="${lv}" data-slot="${slot}"`);
+      }).join('');
+      return `<div class="pyr-row">${deck}${slots}</div>`;
+    }).join('');
+    return `<div class="pyramid">${rows}</div>`;
+  }
+
+  function renderBoard() {
+    const humanTurn = isHuman(game.current) && !busy && game.winner === null;
+    const pd = game.pending[0];
+    const tokenBoardCells = new Set();
+    if (humanTurn && pd && pd.t === 'tokenBoard') {
+      E.legalMoves(game).forEach((m) => tokenBoardCells.add(m.cell));
+    }
+    const canSelectTokens = humanTurn && !pd && !game.turn.mandatoryDone && !privMode && !goldFor;
+
+    const cells = game.board.map((tok, i) => {
+      if (!tok) return `<div class="cell"></div>`;
+      let cls = 'cell filled c-' + tok;
+      let attr = '';
+      if (humanTurn) {
+        if (goldFor && tok === 'gold') {
+          cls += ' pick hint';
+          attr = `data-action="gold" data-cell="${i}"`;
+        } else if (privMode && tok !== 'gold') {
+          cls += ' pick hint';
+          attr = `data-action="priv-take" data-cell="${i}"`;
+        } else if (tokenBoardCells.has(i)) {
+          cls += ' pick hint';
+          attr = `data-action="ability-token" data-cell="${i}"`;
+        } else if (canSelectTokens && tok !== 'gold') {
+          const would = sel.includes(i) || E.validateTakeCells(game, sel.concat([i])) === null;
+          if (sel.includes(i)) cls += ' sel pick';
+          else if (would && sel.length < 3) cls += ' pick';
+          else cls += sel.length ? ' dimmed' : '';
+          if (sel.includes(i) || (would && sel.length < 3)) attr = `data-action="cell" data-cell="${i}"`;
+        }
+      }
+      const label = tok === 'gold' ? '★' : tok === 'pearl' ? 'P' : '';
+      return `<div class="${cls}" ${attr} title="${tokTitle(tok)}">${label}</div>`;
+    }).join('');
+    return `<div id="board">${cells}</div>`;
+  }
+
+  function renderActionBar() {
+    const parts = [];
+    const humanTurn = isHuman(game.current) && !busy && game.winner === null;
+    const moves = game.winner === null ? E.legalMoves(game) : [];
+    const pd = game.pending[0];
+
+    if (game.winner !== null) {
+      parts.push(`<span class="msg">${nameOf(game.winner)} won: ${game.winReason}</span>`);
+    } else if (busy) {
+      parts.push('<span class="msg info">AI is thinking…</span>');
+    } else if (!humanTurn) {
+      parts.push('<span class="msg info">Waiting…</span>');
+    } else if (pd) {
+      if (pd.t === 'discard') {
+        const cnt = E.tokenCount(game.players[game.current]);
+        parts.push(`<span class="msg">Too many tokens (${cnt}/10) — click your tokens to discard</span>`);
+      } else if (pd.t === 'royal') {
+        parts.push('<span class="msg">Choose a Royal card</span>');
+      } else if (pd.t === 'steal') {
+        parts.push('<span class="msg">Steal a token from your opponent:</span>');
+        moves.forEach((m) => {
+          parts.push(`<span class="colorbtn c-${m.color}" data-action="steal" data-color="${m.color}" title="steal ${m.color}"></span>`);
+        });
+      } else if (pd.t === 'joker') {
+        parts.push('<span class="msg">Choose a color for your joker card:</span>');
+        moves.forEach((m) => {
+          parts.push(`<span class="colorbtn c-${m.color}" data-action="joker" data-color="${m.color}" title="${m.color}"></span>`);
+        });
+      } else if (pd.t === 'tokenBoard') {
+        parts.push(`<span class="msg">Card ability: click a ${pd.color} token on the board</span>`);
+      }
+    } else if (goldFor) {
+      parts.push('<span class="msg">Click a gold token to complete the reserve</span>');
+      parts.push('<button data-action="cancel">Cancel</button>');
+    } else if (privMode) {
+      parts.push('<span class="msg">Privilege: click any non-gold token</span>');
+      parts.push('<button data-action="cancel">Cancel</button>');
+    } else if (cardSel) {
+      const me = game.players[game.current];
+      if (cardSel.kind === 'deck') {
+        parts.push(`<span class="msg info">Level ${cardSel.level} deck</span>`);
+        parts.push(`<button class="primary" data-action="do-reserve">Reserve top card + take gold</button>`);
+      } else {
+        const card = E.CARD_BY_ID[cardSel.id];
+        const pay = E.paymentFor(game, me, card);
+        if (cardSel.kind === 'pyr') {
+          if (E.canBuy(game, me, card)) {
+            parts.push(`<button class="primary" data-action="do-buy">Buy (${payText(pay)})</button>`);
+          } else {
+            parts.push(`<span class="msg info">${whyNot(me, card)}</span>`);
+          }
+          if (me.reserved.length < 3 && game.board.includes('gold')) {
+            parts.push(`<button data-action="do-reserve">Reserve + take gold</button>`);
+          }
+        } else if (cardSel.kind === 'res') {
+          if (E.canBuy(game, me, card)) {
+            parts.push(`<button class="primary" data-action="do-buy">Buy (${payText(pay)})</button>`);
+          } else {
+            parts.push(`<span class="msg info">${whyNot(me, card)}</span>`);
+          }
+        }
+      }
+      parts.push('<button data-action="cancel">Cancel</button>');
+    } else {
+      if (!game.turn.mandatoryDone) {
+        if (sel.length > 0) {
+          const valid = E.validateTakeCells(game, sel) === null;
+          const same3 = valid && sel.length === 3 && sel.every((i) => game.board[i] === game.board[sel[0]]);
+          const pearls2 = valid && sel.filter((i) => game.board[i] === 'pearl').length >= 2;
+          const warn = same3 || pearls2 ? ' (opponent gains a privilege)' : '';
+          parts.push(`<button class="primary" data-action="do-take" ${valid ? '' : 'disabled'}>Take ${sel.length} token${sel.length > 1 ? 's' : ''}${warn}</button>`);
+          parts.push('<button data-action="cancel">Clear</button>');
+        } else {
+          parts.push('<span class="msg info">Click board tokens (line of up to 3), a card, or a deck.</span>');
+        }
+        if (moves.some((m) => m.t === 'replenish')) {
+          parts.push(`<button data-action="replenish" title="Refill the board from the bag; your opponent gains a privilege">Replenish board (bag: ${game.bag.length})</button>`);
+        }
+        if (moves.some((m) => m.t === 'pass')) {
+          parts.push('<button data-action="pass">Pass (no action available)</button>');
+        }
+      }
+    }
+    return `<div id="actionbar">${parts.join('')}</div>`;
+  }
+
+  function payText(pay) {
+    if (!pay || Object.keys(pay).length === 0) return 'free';
+    return Object.keys(pay).map((c) => `${pay[c]} ${c}`).join(', ');
+  }
+
+  function whyNot(player, card) {
+    if (card.color === 'joker') {
+      const b = E.bonuses(player);
+      if (!GEMS.some((c) => b[c] > 0)) return 'Joker cards require at least one bonus card';
+    }
+    const b = E.bonuses(player);
+    const missing = [];
+    let short = 0;
+    for (const c of COST_ORDER) {
+      const eff = Math.max(0, (card.cost[c] || 0) - (c === 'pearl' ? 0 : b[c]));
+      const lack = Math.max(0, eff - player.tokens[c]);
+      if (lack > 0) { missing.push(`${lack} ${c}`); short += lack; }
+    }
+    const gold = player.tokens.gold;
+    if (short <= gold) return 'Affordable';
+    return `Missing: ${missing.join(', ')}${gold ? ` (have ${gold} gold)` : ''}`;
+  }
+
+  function renderLog() {
+    const entries = game.log.slice(-120).map((e) => {
+      const cls = e.player === null ? '' : 'p' + e.player;
+      return `<div class="entry ${cls}"><b>T${e.turn}</b> ${e.text}</div>`;
+    }).join('');
+    return entries;
+  }
+
+  function render() {
+    // top panel: opponent; bottom: you (in hotseat P2 top, P1 bottom)
+    const topIdx = mode === 'hotseat' ? 1 : 1 - humanIdx;
+    const botIdx = 1 - topIdx;
+    $('#side').innerHTML = renderPanel(topIdx) + renderPanel(botIdx);
+    $('#mid').innerHTML = renderRoyals() +
+      `<div class="tablerow gamerow">${renderPyramid()}<div class="boardwrap">${renderBoard()}</div></div>` +
+      renderActionBar();
+    $('#logbox').innerHTML = renderLog();
+    $('#logbox').scrollTop = $('#logbox').scrollHeight;
+    $('#undo').disabled = busy || history.length === 0;
+
+    const ov = $('#overlay');
+    if (game.winner !== null && !ov.dataset.dismissed) {
+      ov.classList.remove('hidden');
+      $('#overlay h2').textContent = `${nameOf(game.winner)} win${nameOf(game.winner) === 'You' ? '' : 's'}!`;
+      const rounds = Math.ceil(game.turnCount / 2);
+      $('#overlay p').textContent = `${game.winReason} — in ${rounds} round${rounds === 1 ? '' : 's'}`;
+      const sa = $('#savearea');
+      if (mode !== 'hotseat' && game.winner === humanIdx) {
+        sa.innerHTML = scoreSaved
+          ? '<span class="saved">Result saved ✓</span>'
+          : `<input id="pname" maxlength="24" placeholder="Your name" value="${getLastName().replace(/"/g, '')}">
+             <button class="primary" data-action="save-score">Save to leaderboard</button>`;
+      } else {
+        sa.innerHTML = '';
+      }
+    } else {
+      ov.classList.add('hidden');
+    }
+  }
+
+  // ---------- events ----------
+  document.addEventListener('click', (ev) => {
+    const el = ev.target.closest('[data-action]');
+    if (!el) return;
+    const a = el.dataset.action;
+
+    if (a === 'new') { delete $('#overlay').dataset.dismissed; newGame(); return; }
+    if (a === 'undo') { undo(); return; }
+    if (a === 'leaderboard') { $('#lbdialog').showModal(); renderLeaderboard(); return; }
+    if (a === 'lb-close') { $('#lbdialog').close(); return; }
+    if (a === 'save-score') { saveScore(); return; }
+    if (a === 'overlay-close') { $('#overlay').dataset.dismissed = '1'; render(); return; }
+    if (busy || !game || game.winner !== null) return;
+    if (!isHuman(game.current)) return;
+
+    switch (a) {
+      case 'cell': {
+        const i = +el.dataset.cell;
+        if (sel.includes(i)) sel = sel.filter((x) => x !== i);
+        else if (sel.length < 3) sel.push(i);
+        cardSel = null;
+        render();
+        break;
+      }
+      case 'do-take':
+        applyHuman({ t: 'take', cells: sel.slice() });
+        break;
+      case 'cancel':
+        resetTransient();
+        render();
+        break;
+      case 'replenish':
+        applyHuman({ t: 'replenish' });
+        break;
+      case 'pass':
+        applyHuman({ t: 'pass' });
+        break;
+      case 'use-priv':
+        privMode = !privMode;
+        sel = []; cardSel = null; goldFor = null;
+        render();
+        break;
+      case 'priv-take':
+        applyHuman({ t: 'privilege', cell: +el.dataset.cell });
+        break;
+      case 'pyrcard': {
+        const id = el.dataset.id;
+        if (cardSel && cardSel.kind === 'pyr' && cardSel.id === id) { cardSel = null; }
+        else cardSel = { kind: 'pyr', id, level: +el.dataset.level, slot: +el.dataset.slot };
+        sel = []; privMode = false; goldFor = null;
+        render();
+        break;
+      }
+      case 'deck': {
+        const lv = +el.dataset.level;
+        if (cardSel && cardSel.kind === 'deck' && cardSel.level === lv) cardSel = null;
+        else cardSel = { kind: 'deck', level: lv };
+        sel = []; privMode = false; goldFor = null;
+        render();
+        break;
+      }
+      case 'rescard': {
+        const owner = +el.dataset.owner;
+        if (owner !== game.current) return;
+        const id = el.dataset.id;
+        if (cardSel && cardSel.kind === 'res' && cardSel.id === id) cardSel = null;
+        else cardSel = { kind: 'res', id };
+        sel = []; privMode = false; goldFor = null;
+        render();
+        break;
+      }
+      case 'do-buy': {
+        if (!cardSel) return;
+        applyHuman({ t: 'buy', card: cardSel.id, from: cardSel.kind === 'res' ? 'reserve' : 'pyramid' });
+        break;
+      }
+      case 'do-reserve': {
+        if (!cardSel) return;
+        const golds = [];
+        game.board.forEach((t, i) => { if (t === 'gold') golds.push(i); });
+        if (golds.length === 0) return;
+        const target = cardSel.kind === 'deck'
+          ? { level: cardSel.level, slot: 'deck' }
+          : { level: cardSel.level, slot: cardSel.slot };
+        if (golds.length === 1) {
+          applyHuman({ t: 'reserve', gold: golds[0], ...target });
+        } else {
+          goldFor = target;
+          render();
+        }
+        break;
+      }
+      case 'gold': {
+        if (!goldFor) return;
+        applyHuman({ t: 'reserve', gold: +el.dataset.cell, ...goldFor });
+        break;
+      }
+      case 'discard':
+        applyHuman({ t: 'discard', color: el.dataset.color });
+        break;
+      case 'royal':
+        applyHuman({ t: 'royal', royal: el.dataset.id });
+        break;
+      case 'steal':
+        applyHuman({ t: 'steal', color: el.dataset.color });
+        break;
+      case 'joker':
+        applyHuman({ t: 'joker', color: el.dataset.color });
+        break;
+      case 'ability-token':
+        applyHuman({ t: 'tokenBoard', cell: +el.dataset.cell });
+        break;
+    }
+  });
+
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape') { resetTransient(); render(); }
+  });
+
+  window.addEventListener('DOMContentLoaded', () => {
+    newGame();
+  });
+
+  // debugging aid (used by automated tests; harmless in normal play)
+  window.__sd = {
+    get game() { return game; },
+    set game(v) { game = v; resetTransient(); render(); },
+    get busy() { return busy; },
+  };
+})();
+
+</script>
+</body>
+</html>

@@ -55,7 +55,6 @@ select { background: var(--panel2); color: var(--text); border: 1px solid var(--
 .row1 { display: flex; gap: 12px; align-items: stretch; }
 .sidecol { width: 268px; flex-shrink: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: 12px; }
 .sidecol .panel { display: flex; flex-direction: column; }
-.sidecol .panel .reserved { margin-top: auto; }
 .midcol { flex: none; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px; }
 /* fixed table height: the pyramid centers inside, side content never resizes it */
 .gametable { height: 402px; display: flex; gap: 14px; align-items: center; }
@@ -79,20 +78,23 @@ select { background: var(--panel2); color: var(--text); border: 1px solid var(--
 .panel .head .score span { white-space: nowrap; }
 .panel .head .score .crn { font-size: 12px; color: var(--dim); }
 .panel .head .score .ptsnum { font-size: 21px; line-height: 1; }
-.colorgrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; text-align: center; }
+.colorgrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center; }
 /* inline token chips used inside buttons and prompts instead of words */
-.paychips { display: inline-flex; align-items: center; vertical-align: middle; margin-left: 2px; }
-.paychips .pc { width: 17px; height: 17px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #fff; text-shadow: 0 1px 1px rgba(0,0,0,.6); box-shadow: 0 1px 2px rgba(0,0,0,.45), inset 0 1px 1px rgba(255,255,255,.25); }
-.paychips .pc + .pc { margin-left: -3px; }
-.paychips .pc.c-white, .paychips .pc.c-gold { color: #47423a; text-shadow: none; }
-/* card stacks: one plate per bonus, count them visually like piles in the real game.
-   column-reverse: first DOM child = bottom of the pile, later children overlap on top */
-.stackwrap { height: 52px; display: flex; flex-direction: column-reverse; align-items: center; }
-.bar { width: 30px; height: 16px; flex-shrink: 0; border-radius: 4px; box-shadow: 0 2px 3px rgba(0,0,0,.45); }
-.bar + .bar { margin-bottom: -8px; }
-.bar.empty { background: none; box-shadow: none; border: 1px dashed #273353; }
-/* token piles: coins stacked like chips, count them visually */
-.pile { height: 48px; display: flex; flex-direction: column-reverse; align-items: center; }
+/* inline infographics: tokens, scrolls and cards drawn inside a line of text,
+   sized in em so they ride along with whatever font size surrounds them */
+.ichips { display: inline-flex; vertical-align: -0.16em; margin: 0 1px; }
+.ic { width: 1.05em; height: 1.05em; border-radius: 50%; flex-shrink: 0; box-shadow: 0 1px 2px rgba(0,0,0,.45), inset 0 1px 1px rgba(255,255,255,.28), inset 0 -1px 2px rgba(0,0,0,.2); }
+.ic + .ic { margin-left: -0.3em; }
+.ixn { font-size: .9em; opacity: .75; margin-left: 1px; }
+.iscroll { display: inline-block; position: relative; vertical-align: -0.12em; width: .58em; height: .95em; margin: 0 3px; background: linear-gradient(90deg, #b9a67c, #efe6c8 35%, #dccfa4 70%, #a08a5c); border-radius: 2px; }
+.iscroll::before, .iscroll::after { content: ''; position: absolute; left: -1px; right: -1px; height: .24em; background: linear-gradient(180deg, #8f7748, #6e5a33); border-radius: 2px; }
+.iscroll::before { top: -0.05em; }
+.iscroll::after { bottom: -0.05em; }
+.icard { display: inline-flex; align-items: center; justify-content: center; vertical-align: -0.18em; min-width: 1.15em; height: 1.2em; padding: 0 .18em; margin: 0 1px; border-radius: 3px; font-family: 'Cinzel', 'Times New Roman', serif; font-weight: 700; font-size: .85em; color: #fff; text-shadow: 0 1px 1px rgba(0,0,0,.55); box-shadow: 0 1px 2px rgba(0,0,0,.4); }
+.icard.c-white { color: #47423a; text-shadow: none; }
+/* token piles: coins stacked like chips, counted visually. Height is fixed for
+   the largest possible stack (4 of a color) so panels never resize. */
+.pile { height: 52px; display: flex; flex-direction: column-reverse; align-items: center; }
 .coin { width: 25px; height: 25px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 2px 3px rgba(0,0,0,.5), inset 0 1px 1px rgba(255,255,255,.22), inset 0 -2px 2px rgba(0,0,0,.18); }
 .coin + .coin { margin-bottom: -17px; }
 .coin.empty { background: none; box-shadow: none; border: 1px dashed #273353; }
@@ -102,37 +104,43 @@ select { background: var(--panel2); color: var(--text); border: 1px solid var(--
 .ptsnum { font-family: 'Cinzel', 'Times New Roman', serif; font-weight: 700; color: #e5c15c; }
 .star { color: #e5c15c; }
 .zero { opacity: 0.25; }
-/* owned cards drawn like the real thing: points on the left, bonus dots on the right */
+/* Owned cards drawn like the real thing: points on the left, bonus dots on the
+   right. The column height is fixed; when a stack grows past six cards the
+   overlap tightens (set inline) so everything still fits without resizing. */
 .cstack { height: 82px; display: flex; flex-direction: column-reverse; align-items: center; }
 .mband { width: 33px; height: 17px; flex-shrink: 0; border-radius: 3px; display: flex; align-items: center; padding: 0 4px; box-shadow: 0 2px 3px rgba(0,0,0,.45); }
-.mband + .mband { margin-bottom: -3px; }
 .mband .mpts { font-family: 'Cinzel', 'Times New Roman', serif; font-weight: 700; font-size: 10px; color: #fff; text-shadow: 0 1px 1px rgba(0,0,0,.6); line-height: 1; min-width: 7px; }
 .mband.c-white .mpts { color: #47423a; text-shadow: none; }
 .mband .mdots { margin-left: auto; display: flex; gap: 1px; }
 .mband .mdots i { width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,.92); box-shadow: 0 1px 1px rgba(0,0,0,.4); }
 .mband.c-white .mdots i { background: #8d8264; }
 .mband.empty { background: none; box-shadow: none; border: 1px dashed #273353; }
-.privrow { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
 /* privilege scroll: rolled parchment, distinct from gold coins */
 .scroll { display: inline-block; position: relative; width: 13px; height: 20px; margin: 2px 2px; background: linear-gradient(90deg, #b9a67c, #efe6c8 35%, #dccfa4 70%, #a08a5c); border-radius: 2px; vertical-align: middle; }
 .scroll::before, .scroll::after { content: ''; position: absolute; left: -2.5px; right: -2.5px; height: 6px; background: linear-gradient(180deg, #8f7748, #6e5a33); border-radius: 3px; box-shadow: 0 1px 2px rgba(0,0,0,.4); }
 .scroll::before { top: -2px; }
 .scroll::after { bottom: -2px; }
 .scroll.pool { width: 15px; height: 25px; }
-.reserved { display: flex; gap: 6px; margin-top: 6px; min-height: 10px; flex-wrap: wrap; align-items: center; }
-.reserved .privs { margin-left: auto; display: flex; gap: 4px; align-items: center; padding-right: 2px; }
-.reserved .privs button { padding: 2px 8px; font-size: 12px; }
-.reserved .privs .scroll { width: 11px; height: 16px; }
+/* fixed-height row: three reserved cards plus the privilege scrolls always fit */
+.reserved { height: 76px; display: flex; gap: 4px; margin-top: 18px; flex-wrap: nowrap; align-items: center; }
+.reserved .privs { margin-left: auto; display: flex; gap: 3px; align-items: center; padding-right: 2px; }
+.reserved .privs .scroll { width: 11px; height: 16px; margin: 0; }
 .reserved .privs .scroll::before, .reserved .privs .scroll::after { height: 5px; left: -2px; right: -2px; }
+/* royal cards keep only their points once taken, so the head shows them as chips */
+.rchip { display: inline-flex; align-items: center; gap: 2px; padding: 1px 5px; border-radius: 4px; background: linear-gradient(160deg, #3a2f55, #251d3a); font-size: 11px; color: #b7a8dd; }
+.rchip b { font-family: 'Cinzel', 'Times New Roman', serif; color: #e5c15c; }
 
 /* ---------- cards ---------- */
-/* no border: the colored band must run flush to the card edge */
-.card { width: 96px; height: 116px; border-radius: 8px; background: var(--panel2); box-shadow: 0 3px 7px rgba(0,0,0,.4); position: relative; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
+/* no border: the colored band must run flush to the card edge. Overflow stays
+   visible so hover hints can sit on top of neighbouring cards. */
+.card { width: 96px; height: 116px; border-radius: 8px; background: var(--panel2); box-shadow: 0 3px 7px rgba(0,0,0,.4); position: relative; display: flex; flex-direction: column; flex-shrink: 0; }
+.card.short:hover { z-index: 6; }
 .card.buyable { box-shadow: 0 0 0 2px var(--ok), 0 3px 7px rgba(0,0,0,.4); cursor: pointer; }
 .card.selectable { cursor: pointer; }
 .card.selected { box-shadow: 0 0 0 2px var(--warn), 0 3px 7px rgba(0,0,0,.4); }
 /* colored band at the top communicates the card's bonus color; flat like print */
-.card .band { display: flex; align-items: center; gap: 4px; padding: 4px 7px; min-height: 28px; }
+/* the band carries the card's own top corners now that the card doesn't clip */
+.card .band { display: flex; align-items: center; gap: 4px; padding: 4px 7px; min-height: 28px; border-radius: 8px 8px 0 0; }
 .card .pts { font-family: 'Cinzel', 'Times New Roman', serif; font-size: 19px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.55); }
 .card .pts.zero { opacity: .4; }
 .card .crowns { font-size: 15px; color: #ffd75e; letter-spacing: -2px; text-shadow: 0 1px 2px rgba(0,0,0,.55); }
@@ -156,7 +164,7 @@ select { background: var(--panel2); color: var(--text); border: 1px solid var(--
 .scroll.mini { width: 8px; height: 12px; margin: 0 1px; }
 .scroll.mini::before, .scroll.mini::after { height: 3px; left: -1.5px; right: -1.5px; }
 .card.back { align-items: center; justify-content: center; background: repeating-linear-gradient(45deg, #26314e, #26314e 6px, #1e2740 6px, #1e2740 12px); color: var(--dim); font-weight: 700; }
-.card.mini { width: 76px; height: 80px; }
+.card.mini { width: 62px; height: 72px; }
 .card.mini .band { min-height: 22px; padding: 2px 6px; }
 .card.mini .pts { font-size: 13px; }
 .card.mini .crowns { font-size: 12px; }
@@ -164,7 +172,11 @@ select { background: var(--panel2); color: var(--text); border: 1px solid var(--
 .card.mini .bmarks .bmark + .bmark { margin-left: 2px; }
 .card.mini .cardbody { padding: 3px 5px 4px; }
 .card.mini .ability { font-size: 8px; min-height: 10px; }
-.card.mini .cost .cc { width: 14px; height: 14px; font-size: 9px; }
+/* four cost chips have to fit the narrow reserved card, so they are tighter */
+.card.mini .cost { gap: 1px; }
+.card.mini .cost .cc { width: 12px; height: 12px; font-size: 8px; }
+.card.mini.short:hover .cc.lack::after { top: -7px; right: -4px; font-size: 7px; padding: 1px 2px; border-radius: 5px; }
+.card.mini .needhint { bottom: 20px; font-size: 8px; }
 /* royals: same outline treatment as regular cards (shadow, no visible border) */
 .royal { width: 76px; height: 60px; border-radius: 8px; background: linear-gradient(160deg, #3a2f55, #251d3a); box-shadow: 0 3px 7px rgba(0,0,0,.4); padding: 6px 8px; position: relative; flex-shrink: 0; }
 .royal .pts { font-family: 'Cinzel', 'Times New Roman', serif; font-size: 16px; font-weight: 700; color: #e5c15c; }
@@ -174,8 +186,12 @@ select { background: var(--panel2); color: var(--text); border: 1px solid var(--
 
 /* ---------- middle table ---------- */
 .tablerow { background: var(--panel); border-radius: 10px; padding: 10px; }
-.royalsrow { display: flex; align-items: center; gap: 10px; }
-.royalsrow .privpool { margin-left: auto; display: flex; gap: 5px; align-items: center; color: var(--dim); font-size: 12px; }
+/* the row mirrors the table's three columns (decks | pyramid | board), so the
+   royal cards sit centered over the pyramid */
+.royalsrow { display: flex; align-items: center; gap: 14px; }
+.royalsrow .rlabel { width: 54px; flex-shrink: 0; color: var(--dim); font-size: 12px; }
+.royalsrow .rcards { flex: 1; display: flex; gap: 6px; justify-content: center; }
+.royalsrow .privpool { width: 300px; flex-shrink: 0; display: flex; gap: 5px; align-items: center; justify-content: flex-end; color: var(--dim); font-size: 12px; }
 .decks { display: flex; flex-direction: column; gap: 8px; }
 /* pyramid like the physical layout: each row centered over the wider one below */
 .pyramid { display: flex; flex-direction: column; gap: 8px; align-items: center; }
@@ -230,6 +246,31 @@ select { background: var(--panel2); color: var(--text); border: 1px solid var(--
 #savearea input { background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; color: var(--text); font: inherit; width: 170px; }
 #savearea .saved { color: var(--ok); }
 .hidden { display: none !important; }
+
+/* ---------- bag under the board (its contents are public: everything not on
+   the board or in a player's hand is in the bag, so counting it is fair) ---------- */
+/* board and bag form one unit: the stack is as wide as the board, and the bag
+   stretches to exactly that width */
+.boardstack { display: flex; flex-direction: column; align-items: stretch; gap: 12px; width: max-content; }
+.bagwrap { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px 8px 16px 16px; background: linear-gradient(180deg, #1b2234, #131926); box-shadow: inset 0 2px 7px rgba(0,0,0,.55); }
+.baglbl { font-size: 11px; color: var(--dim); }
+.bagcols { display: flex; gap: 5px; align-items: flex-end; margin: 0 auto; }
+/* fixed height for the largest possible stack (4 of a color), so the bag never resizes */
+.bcol { width: 17px; height: 32px; display: flex; flex-direction: column-reverse; align-items: center; }
+.bcoin { width: 15px; height: 15px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 1px 2px rgba(0,0,0,.5), inset 0 1px 1px rgba(255,255,255,.22), inset 0 -1px 2px rgba(0,0,0,.2); }
+.bcoin + .bcoin { margin-bottom: -10px; }
+.bcoin.empty { background: none; box-shadow: none; border: 1px dashed #273353; }
+
+/* ---------- move animations: tokens and cards fly between places ---------- */
+#fxlayer { position: fixed; inset: 0; pointer-events: none; z-index: 200; }
+#fxlayer > * { position: fixed; margin: 0; }
+.fxtok { border-radius: 50%; box-shadow: 0 4px 10px rgba(0,0,0,.65), inset 0 2px 2px rgba(255,255,255,.25), inset 0 -3px 4px rgba(0,0,0,.22); }
+/* outline, not box-shadow: the tokens' own 3D shading stays intact */
+.fxflash { animation: fxflash .22s ease-out 1; }
+@keyframes fxflash {
+  0% { outline: 3px solid var(--warn); outline-offset: 0; }
+  100% { outline: 3px solid rgba(245,184,64,0); outline-offset: 4px; }
+}
 
 /* footer */
 #footer { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 10px 24px 14px; color: var(--dim); font-size: 12px; }
@@ -1240,6 +1281,48 @@ if (typeof module !== 'undefined') module.exports = { CARDS, ROYALS };
     steal: 'Take 1 non-gold token from your opponent',
     privilege: 'Take 1 privilege',
   };
+  const ABILITY_ICON = { again: '↻', token: '+', steal: '⇄', privilege: '🗞' };
+
+  // ---------- inline infographics for prompts and the move log ----------
+  const TOKEN_WORDS = ['white', 'blue', 'green', 'red', 'black', 'pearl', 'gold'];
+
+  function chipsHTML(color, n) {
+    if (n <= 4) {
+      return `<span class="ichips" title="${n} ${color}">${`<i class="ic c-${color}"></i>`.repeat(n)}</span>`;
+    }
+    return `<span class="ichips" title="${n} ${color}"><i class="ic c-${color}"></i></span><span class="ixn">×${n}</span>`;
+  }
+
+  const SCROLL_HTML = '<span class="iscroll" title="privilege"></span>';
+
+  function cardChipHTML(id) {
+    const card = E.CARD_BY_ID[id];
+    if (!card) return id;
+    const color = card.color === 'joker' ? 'joker' : card.color;
+    return `<span class="icard c-${color}" title="${id}: ${card.points} point(s)${card.crowns ? ', ' + '♛'.repeat(card.crowns) : ''}">${card.points || ''}</span>`;
+  }
+
+  // Draws tokens, scrolls and cards straight into a sentence: "P1 takes ●●" reads
+  // faster than "P1 takes white, black" and looks like the game on the table.
+  function infographic(text) {
+    // drawings are parked behind control-character markers so later passes cannot
+    // match colour names or digits inside the HTML they generate
+    const stash = [];
+    const put = (html) => '\u0001' + (stash.push(html) - 1) + '\u0002';
+    const MARK = '\u0001\\d+\u0002';
+    let s = String(text).replace(/[<>&]/g, (ch) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[ch]));
+    s = s.replace(new RegExp(`(\\d+)\\s+(${TOKEN_WORDS.join('|')})\\b`, 'g'), (m, n, c) => put(chipsHTML(c, +n)));
+    s = s.replace(new RegExp(`\\b(${TOKEN_WORDS.join('|')})\\b`, 'g'), (m, c) => put(chipsHTML(c, 1)));
+    s = s.replace(/\bprivileges?\b/g, () => put(SCROLL_HTML));
+    s = s.replace(/\b([123]-\d\d)\b/g, (m, id) => put(cardChipHTML(id)));
+    // the words and separators those drawings replace are now noise
+    s = s.replace(new RegExp(`(${MARK}(?:[\\s,]+(?:and\\s+)?${MARK})*)\\s+tokens?\\b`, 'g'), '$1');
+    s = s.replace(new RegExp(`\\ba (${MARK})`, 'g'), '$1');
+    const sepRe = new RegExp(`(${MARK})(?:\\s*,\\s*|\\s+and\\s+)(?=${MARK})`, 'g');
+    let prev;
+    do { prev = s; s = s.replace(sepRe, '$1'); } while (s !== prev);
+    return s.replace(/\u0001(\d+)\u0002/g, (m, i) => stash[+i]);
+  }
 
   function isHuman(idx) { return mode === 'hotseat' || idx === humanIdx; }
   function nameOf(idx) {
@@ -1345,19 +1428,375 @@ if (typeof module !== 'undefined') module.exports = { CARDS, ROYALS };
     goldFor = null;
   }
 
-  function applyHuman(move) {
-    if (busy || game.winner !== null) return;
+  // ---------- move animations ----------
+  // Every visible change is derived by diffing the state before and after a
+  // move, so chained effects (buy -> ability token -> royal card) animate too.
+  // slow-fast-slow S-curve: the flight eases out of its source and settles into
+  // its destination instead of stopping dead
+  const ANIM = { fly: 500, flash: 220, stagger: 60, gap: 90, ease: 'cubic-bezier(.65,0,.35,1)' };
+  let animating = false;
+
+  function fxLayer() {
+    let l = document.getElementById('fxlayer');
+    if (!l) {
+      l = document.createElement('div');
+      l.id = 'fxlayer';
+      document.body.appendChild(l);
+    }
+    return l;
+  }
+
+  // body carries a zoom factor; clones live inside it, so convert viewport
+  // pixels from getBoundingClientRect() into the body's own coordinate space
+  function zoomFactor() {
+    return parseFloat(getComputedStyle(document.body).zoom) || 1;
+  }
+
+  function rectOf(el) {
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    const z = zoomFactor();
+    return { left: r.left / z, top: r.top / z, width: r.width / z, height: r.height / z };
+  }
+
+  function geometry() {
+    const g = { cell: {}, card: {}, deck: {}, pile: {}, privs: {}, bag: {}, royal: {}, band: {}, slot: {}, ownroyal: {}, node: {} };
+    const grab = (attr, bucket, keepNode, innerSel) => {
+      document.querySelectorAll(`[data-anim-${attr}]`).forEach((el) => {
+        const key = el.dataset['anim' + attr[0].toUpperCase() + attr.slice(1)];
+        // anchor on the topmost token/scroll of a stack, not on the whole column
+        const inner = innerSel ? [...el.querySelectorAll(innerSel)].pop() : null;
+        g[bucket][key] = rectOf(inner || el);
+        if (keepNode) g.node[bucket + ':' + key] = el.cloneNode(true);
+      });
+    };
+    grab('cell', 'cell');
+    grab('card', 'card', true);
+    grab('deck', 'deck', true);
+    grab('pile', 'pile', false, '.coin:not(.empty)');
+    grab('privs', 'privs', false, '.scroll');
+    grab('bag', 'bag', false, '.bcoin:not(.empty)');
+    grab('royal', 'royal', true);
+    grab('band', 'band');
+    grab('slot', 'slot');
+    grab('ownroyal', 'ownroyal');
+    const pool = document.getElementById('privpool');
+    g.privPool = pool ? rectOf([...pool.querySelectorAll('.scroll')].pop() || pool) : null;
+    return g;
+  }
+
+  function stateSnapshot(s) {
+    const bag = {};
+    E.TOKEN_TYPES.forEach((c) => (bag[c] = 0));
+    s.bag.forEach((c) => bag[c]++);
+    return {
+      board: s.board.slice(),
+      bag,
+      pool: s.privilegesPool,
+      players: s.players.map((p) => ({
+        tokens: { ...p.tokens },
+        cards: p.cards.map((c) => c.id),
+        reserved: p.reserved.map((r) => r.id),
+        privileges: p.privileges,
+        royals: p.royals.slice(),
+      })),
+    };
+  }
+
+  function planFlights(before, after, gb, ga, actor) {
+    const flights = [];
+    const add = (from, to, opts) => { if (from && to) flights.push({ from, to, ...opts }); };
+
+    // --- what changed on the board ---
+    const emptied = [], filled = [];
+    for (let i = 0; i < 25; i++) {
+      if (before.board[i] && !after.board[i]) emptied.push({ i, color: before.board[i] });
+      if (!before.board[i] && after.board[i]) filled.push({ i, color: after.board[i] });
+    }
+    const gain = [0, 1].map((p) => {
+      const o = {};
+      E.TOKEN_TYPES.forEach((c) => { const d = after.players[p].tokens[c] - before.players[p].tokens[c]; if (d > 0) o[c] = d; });
+      return o;
+    });
+    const loss = [0, 1].map((p) => {
+      const o = {};
+      E.TOKEN_TYPES.forEach((c) => { const d = before.players[p].tokens[c] - after.players[p].tokens[c]; if (d > 0) o[c] = d; });
+      return o;
+    });
+    const bagGain = {};
+    E.TOKEN_TYPES.forEach((c) => { const d = after.bag[c] - before.bag[c]; if (d > 0) bagGain[c] = d; });
+
+    // board -> player (take tokens, privilege, gold, card ability)
+    for (const e of emptied) {
+      const p = [actor, 1 - actor].find((pi) => (gain[pi][e.color] || 0) > 0);
+      if (p === undefined) continue;
+      gain[p][e.color]--;
+      add(gb.cell[e.i], ga.pile[`${p}-${e.color}`], { kind: 'token', color: e.color, hide: `pile:${p}-${e.color}` });
+    }
+    // opponent -> player (steal ability)
+    for (const c of E.TOKEN_TYPES) {
+      for (const p of [0, 1]) {
+        while ((gain[p][c] || 0) > 0 && (loss[1 - p][c] || 0) > 0) {
+          gain[p][c]--; loss[1 - p][c]--;
+          add(gb.pile[`${1 - p}-${c}`], ga.pile[`${p}-${c}`], { kind: 'token', color: c, hide: `pile:${p}-${c}` });
+        }
+      }
+    }
+    // player -> bag (payment, discarding down to 10)
+    for (const c of E.TOKEN_TYPES) {
+      for (const p of [0, 1]) {
+        while ((loss[p][c] || 0) > 0 && (bagGain[c] || 0) > 0) {
+          loss[p][c]--; bagGain[c]--;
+          add(gb.pile[`${p}-${c}`], ga.bag[c], { kind: 'token', color: c, hide: `bag:${c}` });
+        }
+      }
+    }
+    // bag -> board (replenish)
+    for (const f of filled) {
+      add(gb.bag[f.color], ga.cell[f.i], { kind: 'token', color: f.color, hide: `cell:${f.i}` });
+    }
+
+    // --- cards ---
+    for (const p of [0, 1]) {
+      const had = new Set(before.players[p].cards);
+      after.players[p].cards.forEach((id) => {
+        if (had.has(id)) return;
+        const wasReserved = before.players[p].reserved.indexOf(id);
+        const from = gb.card[id] || (wasReserved >= 0 ? gb.slot[`${p}-${wasReserved}`] : null);
+        add(from, ga.band[`${p}-${id}`], {
+          kind: 'card', node: gb.card[id] ? g_node(gb, 'card', id) : null, hide: `band:${p}-${id}`,
+        });
+      });
+      const hadRes = new Set(before.players[p].reserved);
+      after.players[p].reserved.forEach((id, slot) => {
+        if (hadRes.has(id)) return;
+        const lvl = E.CARD_BY_ID[id].level;
+        const fromPyramid = gb.card[id];
+        add(fromPyramid || gb.deck[lvl], ga.slot[`${p}-${slot}`], {
+          kind: 'card',
+          node: fromPyramid ? g_node(gb, 'card', id) : g_node(gb, 'deck', lvl),
+          hide: `slot:${p}-${slot}`,
+        });
+      });
+    }
+
+    // --- privileges ---
+    const poolLost = Math.max(0, before.pool - after.pool);
+    let fromPool = poolLost;
+    for (const p of [0, 1]) {
+      let got = after.players[p].privileges - before.players[p].privileges;
+      const oppLost = Math.max(0, before.players[1 - p].privileges - after.players[1 - p].privileges);
+      let fromOpp = oppLost;
+      while (got > 0) {
+        let src = null;
+        if (fromPool > 0) { src = gb.privPool; fromPool--; }
+        else if (fromOpp > 0) { src = gb.privs[String(1 - p)]; fromOpp--; }
+        else src = gb.privPool;
+        add(src, ga.privs[String(p)], { kind: 'scroll', hide: `privs:${p}` });
+        got--;
+      }
+      // spending a privilege sends the scroll back to the pool
+      const spent = before.players[p].privileges - after.players[p].privileges;
+      if (spent > 0 && after.pool > before.pool) {
+        for (let k = 0; k < spent; k++) add(gb.privs[String(p)], ga.privPool, { kind: 'scroll' });
+      }
+    }
+
+    // --- royal cards ---
+    for (const p of [0, 1]) {
+      const had = new Set(before.players[p].royals);
+      after.players[p].royals.forEach((rid) => {
+        if (had.has(rid)) return;
+        add(gb.royal[rid], ga.ownroyal[`${p}-${rid}`], {
+          kind: 'card', node: g_node(gb, 'royal', rid), hide: `ownroyal:${p}-${rid}`,
+        });
+      });
+    }
+    return flights;
+  }
+
+  function g_node(geo, bucket, key) {
+    const n = geo.node[bucket + ':' + key];
+    return n ? n.cloneNode(true) : null;
+  }
+
+  function makeClone(f) {
+    if (f.node) {
+      const el = f.node;
+      el.classList.remove('buyable', 'selected', 'selectable', 'short', 'fxflash');
+      el.removeAttribute('data-action');
+      el.style.margin = '0';
+      return el;
+    }
+    const el = document.createElement('div');
+    if (f.kind === 'scroll') el.className = 'scroll';
+    else el.className = 'fxtok c-' + f.color;
+    return el;
+  }
+
+  // the elements that will appear for a given destination key, newest last
+  function arrivalElements(key, n) {
+    const [type, id] = key.split(':');
+    if (type === 'pile') {
+      const el = document.querySelector(`[data-anim-pile="${id}"]`);
+      return el ? [...el.querySelectorAll('.coin:not(.empty)')].slice(-n) : [];
+    }
+    if (type === 'bag') {
+      const el = document.querySelector(`[data-anim-bag="${id}"]`);
+      return el ? [...el.querySelectorAll('.bcoin:not(.empty)')].slice(-n) : [];
+    }
+    if (type === 'privs') {
+      const el = document.querySelector(`[data-anim-privs="${id}"]`);
+      return el ? [...el.querySelectorAll('.scroll')].slice(-n) : [];
+    }
+    const el = document.querySelector(`[data-anim-${type}="${id}"]`);
+    return el ? [el] : [];
+  }
+
+  async function runFlights(flights) {
+    if (!flights.length) return;
+    const layer = fxLayer();
+
+    // Each flight owns the exact element it turns into: that element is hidden,
+    // gives the flight its true landing rect, and is revealed the instant the
+    // clone stops on top of it — so nothing waits, blinks or resizes on arrival.
+    const groups = {};
+    flights.forEach((f) => { if (f.hide) (groups[f.hide] = groups[f.hide] || []).push(f); });
+    Object.keys(groups).forEach((key) => {
+      const list = groups[key];
+      arrivalElements(key, list.length).forEach((el, i) => {
+        if (!list[i]) return;
+        list[i].arrival = el;
+        const r = rectOf(el);
+        if (r && r.width && r.height) list[i].to = r;
+        el.style.visibility = 'hidden';
+      });
+    });
+
+    const runs = flights.map((f, i) => new Promise((done) => {
+      const el = makeClone(f);
+      if (!el) {
+        if (f.arrival) f.arrival.style.visibility = '';
+        return done();
+      }
+      const place = (node, w, h) => {
+        node.style.left = f.from.left + 'px';
+        node.style.top = f.from.top + 'px';
+        node.style.width = w + 'px';
+        node.style.height = h + 'px';
+        node.style.transformOrigin = '0 0';
+      };
+      const tx = f.to.left - f.from.left;
+      const ty = f.to.top - f.from.top;
+      const sx = f.to.width / (f.from.width || 1);
+      const sy = f.to.height / (f.from.height || 1);
+      const timing = { duration: ANIM.fly, delay: i * ANIM.stagger, easing: ANIM.ease, fill: 'forwards' };
+
+      place(el, f.from.width, f.from.height);
+      layer.appendChild(el);
+
+      // a card and the thin band it becomes look nothing alike, so the two
+      // cross-fade while moving; by touchdown the clone is a copy of the target
+      let morph = null;
+      if (f.arrival && f.kind === 'card') {
+        morph = f.arrival.cloneNode(true);
+        morph.style.visibility = 'visible';
+        place(morph, f.to.width, f.to.height);
+        morph.style.opacity = '0';
+        layer.appendChild(morph);
+        morph.animate([
+          { transform: `scale(${1 / sx}, ${1 / sy})`, opacity: 0 },
+          { opacity: 0, offset: 0.45 },
+          { transform: `translate(${tx}px, ${ty}px) scale(1, 1)`, opacity: 1 },
+        ], timing);
+        el.animate([
+          { opacity: 1 }, { opacity: 1, offset: 0.45 }, { opacity: 0 },
+        ], timing);
+      }
+
+      const a = el.animate([
+        { transform: 'translate(0,0) scale(1,1)' },
+        { transform: `translate(${tx}px, ${ty}px) scale(${sx}, ${sy})` },
+      ], timing);
+
+      a.finished.catch(() => {}).then(() => {
+        if (f.arrival) f.arrival.style.visibility = '';
+        // keep the clone one frame longer: it covers the revealed element
+        // exactly, so the handover never shows a gap
+        requestAnimationFrame(() => {
+          el.remove();
+          if (morph) morph.remove();
+          done();
+        });
+      });
+    }));
+
+    await Promise.all(runs);
+  }
+
+  function flashTargets(move) {
+    const q = (sel) => document.querySelector(sel);
+    const els = [];
+    if (move.t === 'take') move.cells.forEach((i) => els.push(q(`[data-anim-cell="${i}"]`)));
+    if (move.t === 'privilege' || move.t === 'tokenBoard') els.push(q(`[data-anim-cell="${move.cell}"]`));
+    if (move.t === 'reserve') {
+      els.push(q(`[data-anim-cell="${move.gold}"]`));
+      els.push(move.slot === 'deck'
+        ? q(`[data-anim-deck="${move.level}"]`)
+        : q(`[data-anim-card="${game.pyramid[move.level][move.slot]}"]`));
+    }
+    if (move.t === 'buy') els.push(q(`[data-anim-card="${move.card}"]`));
+    if (move.t === 'royal') els.push(q(`[data-anim-royal="${move.royal}"]`));
+    if (move.t === 'steal') {
+      const opp = 1 - game.current;
+      els.push(q(`[data-anim-pile="${opp}-${move.color}"]`));
+    }
+    return els.filter(Boolean);
+  }
+
+  async function applyAnimated(move, opts) {
+    opts = opts || {};
+    const before = stateSnapshot(game);
+    const gb = geometry();
+    const actor = game.current;
+
+    if (opts.flash) {
+      const els = flashTargets(move);
+      if (els.length) {
+        els.forEach((el) => el.classList.add('fxflash'));
+        await sleep(ANIM.flash);
+        els.forEach((el) => el.classList.remove('fxflash'));
+      }
+    }
+
+    game = E.applyMove(game, move);
+    resetTransient();
+    render();
+
+    const flights = planFlights(before, stateSnapshot(game), gb, geometry(), actor);
+    await runFlights(flights);
+    return flights.length;
+  }
+
+  async function applyHuman(move) {
+    if (busy || animating || game.winner !== null) return;
+    let snapshot;
     try {
-      history.push(JSON.stringify(game));
-      if (history.length > 400) history.shift();
-      game = E.applyMove(game, move);
+      snapshot = JSON.stringify(game);
+      E.applyMove(game, move); // validate before touching history
     } catch (e) {
-      history.pop();
       console.error(e);
       flash(e.message);
       return;
     }
-    resetTransient();
+    history.push(snapshot);
+    if (history.length > 400) history.shift();
+    animating = true;
+    try {
+      await applyAnimated(move, { flash: false });
+    } finally {
+      animating = false;
+    }
     render();
     maybeRunAI();
   }
@@ -1377,12 +1816,11 @@ if (typeof module !== 'undefined') module.exports = { CARDS, ROYALS };
     busy = true;
     render();
     while (game.winner === null && !isHuman(game.current)) {
-      await sleep(350);
+      await sleep(220);
       const mv = AI.chooseMove(game);
       if (!mv) break;
-      game = E.applyMove(game, mv);
-      render();
-      await sleep(300);
+      const flown = await applyAnimated(mv, { flash: true });
+      await sleep(flown ? ANIM.gap : 200);
     }
     busy = false;
     render();
@@ -1443,7 +1881,7 @@ if (typeof module !== 'undefined') module.exports = { CARDS, ROYALS };
     const ability = card.ability
       ? `<div class="ability" title="${ABILITY_TITLE[card.ability]}">${ABILITY_TEXT[card.ability]}</div>`
       : '<div class="ability"></div>';
-    return `<div class="card ${cls || ''} ${info ? 'short' : ''}" ${attrs || ''} title="Level ${card.level} card ${card.id} — ${bonusTitle}">
+    return `<div class="card ${cls || ''} ${info ? 'short' : ''}" ${attrs || ''} title="Level ${card.level} card ${card.id} — ${bonusTitle}" data-anim-card="${card.id}">
       <div class="band c-${bonusColor}">${pts}${crowns}${marks}</div>
       <div class="cardbody">
         ${ability}
@@ -1473,24 +1911,32 @@ if (typeof module !== 'undefined') module.exports = { CARDS, ROYALS };
     }
     const mband = (card, color) => {
       const dots = card.bonus ? `<span class="mdots">${'<i></i>'.repeat(card.bonus)}</span>` : '';
-      return `<span class="mband c-${color}" style="z-index:1" title="${card.id}: ${card.points} point(s)${card.bonus ? `, ${card.bonus} ${color} bonus` : ''}${card.crowns ? `, ${'♛'.repeat(card.crowns)}` : ''}">
+      return `<span class="mband c-${color}" style="z-index:1" data-anim-band="${idx}-${card.id}" title="${card.id}: ${card.points} point(s)${card.bonus ? `, ${card.bonus} ${color} bonus` : ''}${card.crowns ? `, ${'♛'.repeat(card.crowns)}` : ''}">
         <span class="mpts">${card.points || ''}</span>${dots}</span>`;
     };
+    // the column is a fixed 82px tall: past six cards the overlap tightens so
+    // every card stays visible and the panel never changes size
+    const STACK_H = 82, BAND_H = 17, STEP = 14;
     const cstack = (color) => {
       const list = cardsByColor[color];
       if (!list || list.length === 0) return '<div class="cstack"><span class="mband empty"></span></div>';
+      const step = list.length > 1 ? Math.min(STEP, (STACK_H - BAND_H) / (list.length - 1)) : STEP;
       let bands = '';
-      list.forEach((card, i) => { bands += mband(card, color).replace('z-index:1', `z-index:${i + 1}`); });
+      list.forEach((card, i) => {
+        const overlap = i === 0 ? 0 : -(BAND_H - step);
+        bands += mband(card, color).replace('z-index:1', `z-index:${i + 1};margin-bottom:${overlap.toFixed(1)}px`);
+      });
       return `<div class="cstack">${bands}</div>`;
     };
     const pile = (n, c, clickable) => {
       const attrs = clickable ? `data-action="discard" data-color="${c}"` : '';
-      if (!n) return `<div class="pile" title="0 ${c} tokens"><span class="coin empty"></span></div>`;
+      const anchor = `data-anim-pile="${idx}-${c}"`;
+      if (!n) return `<div class="pile" ${anchor} title="0 ${c} tokens"><span class="coin empty"></span></div>`;
       let coins = '';
       for (let i = 0; i < Math.min(n, 4); i++) {
         coins += `<span class="coin c-${c}" style="z-index:${i + 1}"></span>`;
       }
-      return `<div class="pile ${clickable ? 'clickable' : ''}" ${attrs} title="${n} ${c} token(s)${clickable ? ' — click to discard one' : ''}">${coins}</div>`;
+      return `<div class="pile ${clickable ? 'clickable' : ''}" ${attrs} ${anchor} title="${n} ${c} token(s)${clickable ? ' — click to discard one' : ''}">${coins}</div>`;
     };
     const cols = GEMS.map((c) => `
       <div>
@@ -1503,38 +1949,36 @@ if (typeof module !== 'undefined') module.exports = { CARDS, ROYALS };
         ${pile(p.tokens[c], c, discarding && p.tokens[c] > 0)}
       </div>`).join('');
 
-    const reserved = p.reserved.map((rc) => {
+    const reserved = p.reserved.map((rc, slot) => {
       const card = E.CARD_BY_ID[rc.id];
       const visible = rc.known || idx === viewer;
-      if (!visible) return `<div class="card mini back">?</div>`;
+      // face-down cards carry only their slot index, never the card id
+      if (!visible) return `<div class="card mini back" data-anim-slot="${idx}-${slot}">?</div>`;
       const mine = active && isHuman(idx) && game.pending.length === 0 && !busy;
       const buyable = mine && E.canBuy(game, p, card);
       const selCls = cardSel && cardSel.kind === 'res' && cardSel.id === rc.id ? 'selected' : '';
       return cardHTML(card, `mini ${buyable ? 'buyable' : ''} selectable ${selCls}`,
-        `data-action="rescard" data-id="${rc.id}" data-owner="${idx}"`);
+        `data-action="rescard" data-id="${rc.id}" data-owner="${idx}" data-anim-slot="${idx}-${slot}"`);
     }).join('');
 
     const royalsOwned = p.royals.map((rid) => {
       const r = E.ROYAL_BY_ID[rid];
-      return `<div class="royal" title="Royal card"><div class="pts">${r.points}</div><div class="ability">${r.ability ? ABILITY_TEXT[r.ability] : ''}</div></div>`;
+      return `<span class="rchip" data-anim-ownroyal="${idx}-${rid}" title="Royal card: ${r.points} prestige points${r.ability ? ', ' + ABILITY_TEXT[r.ability] : ''}">
+        <b>${r.points}</b>${r.ability ? ABILITY_ICON[r.ability] : ''}</span>`;
     }).join('');
-
-    const canUsePriv = active && isHuman(idx) && !busy && game.winner === null &&
-      game.pending.length === 0 && p.privileges > 0 && !game.turn.replenished && !game.turn.mandatoryDone &&
-      game.board.some((t) => t && t !== 'gold');
 
     return `<div class="panel ${active ? 'active' : ''}">
       <div class="head">
         <span class="name">${nameOf(idx)} <span style="color:var(--dim);font-weight:400">&middot; P${idx + 1}</span></span>
+        ${royalsOwned}
         <span class="score">
           <span class="crn" title="crowns">♛ ${cr}</span>
           <span class="ptsnum" title="prestige points">${pts}</span>
         </span>
       </div>
       <div class="colorgrid">${cols}${extraCols}</div>
-      <div class="reserved">${reserved}${royalsOwned}
-        <span class="privs" title="${p.privileges} privilege(s)">
-          ${canUsePriv ? `<button data-action="use-priv" ${privMode ? 'class="primary"' : ''}>${privMode ? 'Pick a token…' : 'Use privilege'}</button>` : ''}
+      <div class="reserved">${reserved}
+        <span class="privs" data-anim-privs="${idx}" title="${p.privileges} privilege(s)">
           ${'<span class="scroll"></span>'.repeat(p.privileges)}
         </span>
       </div>
@@ -1548,15 +1992,16 @@ if (typeof module !== 'undefined') module.exports = { CARDS, ROYALS };
       const avail = game.royals.includes(r.id);
       const cls = !avail ? 'taken' : choosing ? 'selectable' : '';
       const attr = avail && choosing ? `data-action="royal" data-id="${r.id}"` : '';
-      return `<div class="royal ${cls}" ${attr} title="Royal card: ${r.points} prestige points${r.ability ? ', ' + ABILITY_TEXT[r.ability] : ''}. Take one when you reach your 3rd and 6th crown.">
+      return `<div class="royal ${cls}" ${attr} data-anim-royal="${r.id}" title="Royal card: ${r.points} prestige points${r.ability ? ', ' + ABILITY_TEXT[r.ability] : ''}. Take one when you reach your 3rd and 6th crown.">
         <div class="pts">${r.points}</div>
         <div class="ability">${r.ability ? ABILITY_TEXT[r.ability] : ''}</div>
       </div>`;
     }).join('');
     const pool = '<span class="scroll pool"></span>'.repeat(game.privilegesPool);
     return `<div class="tablerow royalsrow">
-      <span style="color:var(--dim);font-size:12px">Royals<br><span style="font-size:10px">at 3♛ &amp; 6♛</span></span>${cards}
-      <div class="privpool">Privileges ${pool || '<span style="opacity:.4">none</span>'}</div>
+      <span class="rlabel">Royals<br><span style="font-size:10px">at 3♛ &amp; 6♛</span></span>
+      <div class="rcards">${cards}</div>
+      <div class="privpool" id="privpool">Privileges ${pool || '<span style="opacity:.4">none</span>'}</div>
     </div>`;
   }
 
@@ -1568,7 +2013,7 @@ if (typeof module !== 'undefined') module.exports = { CARDS, ROYALS };
       const deckCnt = game.decks[lv].length;
       const deckSel = cardSel && cardSel.kind === 'deck' && cardSel.level === lv ? 'selected' : '';
       const deckClickable = canAct && deckCnt > 0 && me.reserved.length < 3 && game.board.includes('gold');
-      return `<div class="deck ${deckClickable ? 'selectable' : ''} ${deckSel}"
+      return `<div class="deck ${deckClickable ? 'selectable' : ''} ${deckSel}" data-anim-deck="${lv}"
         ${deckClickable ? `data-action="deck" data-level="${lv}"` : ''}
         title="Level ${lv} deck: ${deckCnt} cards${deckClickable ? ' — click to reserve the top card' : ''}">
         <span class="lvl">${'●'.repeat(lv)}</span><span class="cnt">${deckCnt}</span><span class="cardslbl">cards</span>
@@ -1598,7 +2043,7 @@ if (typeof module !== 'undefined') module.exports = { CARDS, ROYALS };
     const canSelectTokens = humanTurn && !pd && !game.turn.mandatoryDone && !privMode && !goldFor;
 
     const cells = game.board.map((tok, i) => {
-      if (!tok) return `<div class="cell"></div>`;
+      if (!tok) return `<div class="cell" data-anim-cell="${i}"></div>`;
       let cls = 'cell filled c-' + tok;
       let attr = '';
       if (humanTurn) {
@@ -1620,9 +2065,25 @@ if (typeof module !== 'undefined') module.exports = { CARDS, ROYALS };
         }
       }
       const label = tok === 'gold' ? '★' : tok === 'pearl' ? 'P' : '';
-      return `<div class="${cls}" ${attr} title="${tokTitle(tok)}">${label}</div>`;
+      return `<div class="${cls}" ${attr} data-anim-cell="${i}" title="${tokTitle(tok)}">${label}</div>`;
     }).join('');
     return `<div id="board">${cells}</div>`;
+  }
+
+  // the bag: one stack per color, at most 4 tokens each, so no numbers needed
+  function renderBag() {
+    const counts = {};
+    E.TOKEN_TYPES.forEach((c) => (counts[c] = 0));
+    game.bag.forEach((c) => counts[c]++);
+    const cols = E.TOKEN_TYPES.map((c) => {
+      let coins = '';
+      for (let i = 0; i < counts[c]; i++) coins += `<span class="bcoin c-${c}" style="z-index:${i + 1}"></span>`;
+      if (!counts[c]) coins = '<span class="bcoin empty"></span>';
+      return `<div class="bcol" data-anim-bag="${c}" title="${counts[c]} ${c} in the bag">${coins}</div>`;
+    }).join('');
+    return `<div class="bagwrap" title="Tokens in the bag: ${game.bag.length}">
+      <span class="baglbl">Bag</span><div class="bagcols">${cols}</div>
+    </div>`;
   }
 
   // prompts about clicking the board itself live right under the board
@@ -1643,8 +2104,11 @@ if (typeof module !== 'undefined') module.exports = { CARDS, ROYALS };
         const valid = E.validateTakeCells(game, sel) === null;
         const same3 = valid && sel.length === 3 && sel.every((i) => game.board[i] === game.board[sel[0]]);
         const pearls2 = valid && sel.filter((i) => game.board[i] === 'pearl').length >= 2;
-        const warn = same3 || pearls2 ? ' (opponent gains a privilege)' : '';
-        parts.push(`<button class="primary" data-action="do-take" ${valid ? '' : 'disabled'}>Take ${sel.length} token${sel.length > 1 ? 's' : ''}${warn}</button>`);
+        const warn = same3 || pearls2 ? ` (opponent gains ${SCROLL_HTML})` : '';
+        const picked = {};
+        sel.forEach((i) => { const c = game.board[i]; picked[c] = (picked[c] || 0) + 1; });
+        const chips = Object.keys(picked).map((c) => chipsHTML(c, picked[c])).join('');
+        parts.push(`<button class="primary" data-action="do-take" ${valid ? '' : 'disabled'}>Take ${chips}${warn}</button>`);
         parts.push('<button data-action="cancel">Clear</button>');
       }
     }
@@ -1715,8 +2179,11 @@ if (typeof module !== 'undefined') module.exports = { CARDS, ROYALS };
         if (sel.length === 0) {
           parts.push('<span class="msg info">Click board tokens (line of up to 3), a card, or a deck.</span>');
         }
+        if (moves.some((m) => m.t === 'privilege')) {
+          parts.push(`<button data-action="use-priv" ${privMode ? 'class="primary"' : ''} title="Spend a privilege to take any non-gold token">${privMode ? 'Pick a token…' : `Spend ${SCROLL_HTML}`}</button>`);
+        }
         if (moves.some((m) => m.t === 'replenish')) {
-          parts.push(`<button data-action="replenish" title="Refill the board from the bag; your opponent gains a privilege">Replenish board (bag: ${game.bag.length})</button>`);
+          parts.push(`<button data-action="replenish" title="Refill the board from the bag; your opponent gains a privilege">Replenish board</button>`);
         }
         if (moves.some((m) => m.t === 'pass')) {
           parts.push('<button data-action="pass">Pass (no action available)</button>');
@@ -1731,12 +2198,10 @@ if (typeof module !== 'undefined') module.exports = { CARDS, ROYALS };
     return Object.keys(pay).map((c) => `${pay[c]} ${c}`).join(', ');
   }
 
-  // payment drawn as overlapping token chips instead of words
+  // payment drawn as the actual tokens it costs
   function payChips(pay) {
     if (!pay || Object.keys(pay).length === 0) return 'free';
-    return `<span class="paychips">${Object.keys(pay)
-      .map((c) => `<span class="pc c-${c}" title="${pay[c]} ${c}">${pay[c]}</span>`)
-      .join('')}</span>`;
+    return Object.keys(pay).map((c) => chipsHTML(c, pay[c])).join('');
   }
 
   function whyNot(player, card) {
@@ -1750,11 +2215,11 @@ if (typeof module !== 'undefined') module.exports = { CARDS, ROYALS };
     for (const c of COST_ORDER) {
       const eff = Math.max(0, (card.cost[c] || 0) - (c === 'pearl' ? 0 : b[c]));
       const lack = Math.max(0, eff - player.tokens[c]);
-      if (lack > 0) { missing.push(`${lack} ${c}`); short += lack; }
+      if (lack > 0) { missing.push(chipsHTML(c, lack)); short += lack; }
     }
     const gold = player.tokens.gold;
     if (short <= gold) return 'Affordable';
-    return `Missing: ${missing.join(', ')}${gold ? ` (have ${gold} gold)` : ''}`;
+    return `Missing ${missing.join('')}${gold ? ` (you have ${chipsHTML('gold', gold)})` : ''}`;
   }
 
   function renderLog() {
@@ -1762,7 +2227,7 @@ if (typeof module !== 'undefined') module.exports = { CARDS, ROYALS };
     const items = game.log.slice(-200).reverse();
     return items.map((e, i) => {
       const cls = (e.player === null ? '' : 'p' + e.player) + (i >= 6 ? ' old' : '');
-      return `<div class="entry ${cls}"><b>T${e.turn}</b> ${e.text}</div>`;
+      return `<div class="entry ${cls}"><b>T${e.turn}</b> ${infographic(e.text)}</div>`;
     }).join('');
   }
 
@@ -1773,7 +2238,10 @@ if (typeof module !== 'undefined') module.exports = { CARDS, ROYALS };
     $('#side').innerHTML = renderPanel(topIdx) + renderPanel(botIdx);
     $('#mid').innerHTML = renderRoyals() +
       `<div class="tablerow gametable">${renderPyramid()}
-        <div class="boardwrap">${renderBoard()}${renderBoardActions()}</div>
+        <div class="boardwrap">
+          <div class="boardstack">${renderBoard()}${renderBag()}</div>
+          ${renderBoardActions()}
+        </div>
       </div>`;
     $('#belowbar').innerHTML = renderActionBar();
     $('#logbox').innerHTML = renderLog();
@@ -1805,11 +2273,12 @@ if (typeof module !== 'undefined') module.exports = { CARDS, ROYALS };
     if (!el) return;
     const a = el.dataset.action;
 
-    if (a === 'new') { delete $('#overlay').dataset.dismissed; newGame(); return; }
-    if (a === 'undo') { undo(); return; }
     if (a === 'leaderboard') { $('#lbdialog').showModal(); renderLeaderboard(); return; }
     if (a === 'lb-close') { $('#lbdialog').close(); return; }
     if (a === 'save-score') { saveScore(); return; }
+    if (animating) return;
+    if (a === 'new') { delete $('#overlay').dataset.dismissed; newGame(); return; }
+    if (a === 'undo') { undo(); return; }
     if (a === 'overlay-close') { $('#overlay').dataset.dismissed = '1'; render(); return; }
     if (busy || !game || game.winner !== null) return;
     if (!isHuman(game.current)) return;
@@ -1927,6 +2396,8 @@ if (typeof module !== 'undefined') module.exports = { CARDS, ROYALS };
     get game() { return game; },
     set game(v) { game = v; resetTransient(); render(); },
     get busy() { return busy; },
+    get animating() { return animating; },
+    anim: ANIM,
   };
 })();
 

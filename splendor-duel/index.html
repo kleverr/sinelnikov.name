@@ -255,6 +255,11 @@ select { background: var(--panel2); color: var(--text); border: 1px solid var(--
 /* on hover, show right on the card which cost you cannot cover yet and by how much */
 .card.short:hover .cc.have { opacity: 0.45; }
 .card.short:hover .cc.lack::after { content: attr(data-lack); position: absolute; top: -9px; right: -6px; background: var(--lack); color: #fff; font-size: 9px; font-weight: 700; line-height: 1; padding: 2px 3px; border-radius: 7px; text-shadow: none; box-shadow: var(--sh-1); }
+/* a gold token standing in for a colour you lack: marked on the selected or
+   hovered card, so "Buy (gold)" never looks like it came out of nowhere */
+.card.selected .cc.viagold, .card:hover .cc.viagold { box-shadow: 0 0 0 2px var(--c-gold), var(--sh-1); }
+.card.selected .cc.viagold::after, .card:hover .cc.viagold::after { content: '\2605'; position: absolute; top: -8px; right: -6px; background: var(--c-gold); color: #4a3a05; font-size: 8px; line-height: 1; padding: 2px 3px; border-radius: 7px; text-shadow: none; box-shadow: var(--sh-1); }
+.card.mini.selected .cc.viagold::after, .card.mini:hover .cc.viagold::after { top: -6px; right: -4px; font-size: 6px; padding: 1px 2px; border-radius: 5px; }
 .needhint { position: absolute; left: 7px; right: 7px; bottom: 30px; font-size: 9px; color: var(--lack-text); opacity: 0; transition: opacity .15s; pointer-events: none; display: flex; align-items: center; gap: 3px; }
 .card.short:hover .needhint { opacity: 1; }
 .needhint .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
@@ -1972,15 +1977,35 @@ if (typeof module !== 'undefined') module.exports = { CARDS, ROYALS };
     return { lackByColor, short: lackTotal - gold, gold, privileges: viewer.privileges };
   }
 
+  // which cost colours the viewer would have to cover with gold, which is wild.
+  // Mirrors the engine's payment order so the marks match what actually leaves.
+  function goldSubstitutions(card) {
+    if (!game) return {};
+    const viewer = game.players[viewerIdx()];
+    const b = E.bonuses(viewer);
+    const via = {};
+    let gold = viewer.tokens.gold;
+    for (const c of COST_ORDER) {
+      const eff = Math.max(0, (card.cost[c] || 0) - (c === 'pearl' ? 0 : b[c]));
+      const short = Math.max(0, eff - viewer.tokens[c]);
+      if (short > 0 && gold > 0) {
+        via[c] = Math.min(short, gold);
+        gold -= via[c];
+      }
+    }
+    return via;
+  }
+
   function cardHTML(card, cls, attrs, jokerColor) {
     const info = affordInfo(card);
+    const via = info ? {} : goldSubstitutions(card); // only meaningful if affordable
     const costChips = COST_ORDER
       .filter((c) => card.cost[c])
       .map((c) => {
         const lack = info && info.lackByColor[c];
         const state = lack ? 'lack' : 'have';
-        const hint = lack ? ` — missing ${lack}` : '';
-        return `<span class="cc c-${c} ${state}" ${lack ? `data-lack="-${lack}"` : ''} title="${card.cost[c]} ${c}${hint}">${card.cost[c]}</span>`;
+        const hint = lack ? ` — missing ${lack}` : (via[c] ? ` — ${via[c]} paid with gold` : '');
+        return `<span class="cc c-${c} ${state} ${via[c] ? 'viagold' : ''}" ${lack ? `data-lack="-${lack}"` : ''} title="${card.cost[c]} ${c}${hint}">${card.cost[c]}</span>`;
       })
       .join('');
     let needHint = '';
@@ -2279,7 +2304,7 @@ if (typeof module !== 'undefined') module.exports = { CARDS, ROYALS };
         const pay = E.paymentFor(game, me, card);
         if (cardSel.kind === 'pyr') {
           if (E.canBuy(game, me, card)) {
-            parts.push(`<button class="primary" data-action="do-buy">Buy ${payChips(pay)}</button>`);
+            parts.push(`<button class="primary" data-action="do-buy" title="${payTitle(card, pay)}">Buy ${payChips(pay)}</button>`);
           } else {
             parts.push(`<span class="msg info">${whyNot(me, card)}</span>`);
           }
@@ -2288,7 +2313,7 @@ if (typeof module !== 'undefined') module.exports = { CARDS, ROYALS };
           }
         } else if (cardSel.kind === 'res') {
           if (E.canBuy(game, me, card)) {
-            parts.push(`<button class="primary" data-action="do-buy">Buy ${payChips(pay)}</button>`);
+            parts.push(`<button class="primary" data-action="do-buy" title="${payTitle(card, pay)}">Buy ${payChips(pay)}</button>`);
           } else {
             parts.push(`<span class="msg info">${whyNot(me, card)}</span>`);
           }
@@ -2317,6 +2342,17 @@ if (typeof module !== 'undefined') module.exports = { CARDS, ROYALS };
   function payText(pay) {
     if (!pay || Object.keys(pay).length === 0) return 'free';
     return Object.keys(pay).map((c) => `${pay[c]} ${c}`).join(', ');
+  }
+
+  // gold is wild, so spell out which colours it stands in for
+  function payTitle(card, pay) {
+    const parts = Object.keys(pay).filter((c) => c !== 'gold').map((c) => `${pay[c]} ${c}`);
+    if (pay.gold) {
+      const via = goldSubstitutions(card);
+      const forWhat = Object.keys(via).map((c) => `${via[c]} ${c}`).join(', ');
+      parts.push(`${pay.gold} gold${forWhat ? ` (wild, in place of ${forWhat})` : ''}`);
+    }
+    return parts.length ? `Pays ${parts.join(' + ')}` : 'Free';
   }
 
   // payment drawn as the actual tokens it costs
